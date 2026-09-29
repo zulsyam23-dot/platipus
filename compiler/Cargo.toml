@@ -1,0 +1,38 @@
+[package]
+name = "platipus-compiler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Compiler for the Platipus UI Application Programming Language"
+
+[lib]
+name = "platipus_compiler"
+path = "src/lib.rs"
+
+[dependencies]
+
+[[test]]
+name = "lexer"
+path = "../tests/lexer/main.rs"
+
+[[test]]
+name = "parser"
+path = "../tests/parser/main.rs"
+
+[[test]]
+name = "semantic"
+path = "../tests/semantic/main.rs"
+
+[[test]]
+name = "ir"
+path = "../tests/ir/main.rs"
+
+[[test]]
+name = "codegen"
+path = "../tests/codegen/main.rs"
+
+[[test]]
+name = "loader"
+path = "../tests/loader/main.rs"

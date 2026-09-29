@@ -1,0 +1,31 @@
+[workspace]
+members = [
+    "compiler",
+    "runtime",
+    "cli",
+    "standard"
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/platipus-lang/platipus"
+description = "Platipus — a UI Application Programming Language for the modern web"
+
+[workspace.dependencies]
+platipus-compiler = { path = "compiler", version = "0.1.0" }
+platipus-runtime = { path = "runtime", version = "0.1.0" }
+platipus-standard = { path = "standard", version = "0.1.0" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1

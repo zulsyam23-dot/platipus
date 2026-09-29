@@ -1,0 +1,4 @@
+app Main {
+    Column { }
+    Column { }
+}

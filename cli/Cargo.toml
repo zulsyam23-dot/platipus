@@ -1,0 +1,38 @@
+[package]
+name = "platipus-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command line interface for the Platipus language"
+
+[lib]
+name = "platipus_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "platipus"
+path = "src/main.rs"
+
+[[bin]]
+name = "plt"
+path = "src/plt.rs"
+
+[[test]]
+name = "cli"
+path = "../tests/cli/main.rs"
+
+[[test]]
+name = "fixtures"
+path = "../tests/fixtures/main.rs"
+
+[[test]]
+name = "web"
+path = "../tests/web/main.rs"
+
+[dependencies]
+# Only the compiler. The CLI is a front end for `platipus-compiler`, so it has
+# no use for the host runtime or the standard-library helpers; declaring either
+# would only compile them and imply the CLI drives them, which it does not.
+platipus-compiler = { workspace = true }

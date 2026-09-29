@@ -1,0 +1,8 @@
+/target
+**/*.rs.bk
+dist/
+.platipus/
+*.wasm
+Cargo.lock.bak
+.DS_Store
+Thumbs.db
