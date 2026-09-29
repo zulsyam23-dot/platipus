@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use platipus_compiler::codegen::Web;
+use platipus_compiler::loader::FsLoader;
 use platipus_compiler::pipeline;
 
 struct Harness {
@@ -25,6 +26,7 @@ const HARNESSES: &[Harness] = &[
     Harness { script: "runtime.mjs", fixture: "fixtures/runtime.plt" },
     Harness { script: "ui.mjs", fixture: "fixtures/ui.plt" },
     Harness { script: "components.mjs", fixture: "fixtures/components.plt" },
+    Harness { script: "showcase.mjs", fixture: "../../examples/showcase/main.plt" },
 ];
 
 fn here() -> PathBuf {
@@ -64,11 +66,14 @@ fn the_harnesses_run_against_a_fresh_build() {
         let source = std::fs::read_to_string(&fixture)
             .unwrap_or_else(|error| panic!("read {}: {error}", fixture.display()));
         let out = scratch(harness.script);
-        let compilation = pipeline::build_file(&fixture.display().to_string(), &source, &Web)
-            .unwrap_or_else(|bag| {
-                let codes: Vec<&str> = bag.errors().map(|error| error.code).collect();
-                panic!("{}: {codes:?}", fixture.display())
-            });
+        let compilation = pipeline::build_entry(
+            &fixture.display().to_string(),
+            &source,
+            &FsLoader,
+            &Web,
+        )
+        .unwrap_or_else(|failure| panic!("{}: {failure:?}", fixture.display()))
+        .compilation;
         for artifact in &compilation.artifacts {
             std::fs::write(out.join(artifact.name), &artifact.contents)
                 .unwrap_or_else(|error| panic!("write {}: {error}", artifact.name));

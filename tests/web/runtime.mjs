@@ -104,6 +104,7 @@ await check("received socket messages flow through receive", async () => {
   const sockets = globalThis.__sockets ?? [];
   assert(sockets.length > 0, "no test socket instances");
   assert(sockets[0].sent.includes("ping"), `nothing was sent: ${sockets[0].sent}`);
+  assertEqual(instance.s.sock.value.status, "open", "webSocket should resolve after opening");
   await until(() => byText("ping"));
 });
 

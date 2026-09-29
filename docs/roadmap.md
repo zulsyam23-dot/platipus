@@ -25,9 +25,9 @@ Aturan pemakaian dokumen ini:
   arsitektur target. Dokumen ini tidak menggantikan keduanya.
 
 **Audit terakhir: 2026-09-29**, repo `platipus` v0.1.0, workspace 4 crate
-(`compiler`, `runtime`, `cli`, `standard`). Revisi ini memperbaiki empat cacat
-runtime yang ditemukan oleh `cargo test` dan menutup Phase 7 beserta
-batching Phase 9:
+(`compiler`, `runtime`, `cli`, `standard`). Revisi ini merangkum perbaikan
+runtime sebelumnya dan menutup celah pada showcase agar klaim demo cocok dengan
+perilaku browser nyata:
 
 * `on input` + `bind` pada node yang sama rusak karena render di antara dua
   listener. Kedua jenis listener kini berbagi satu DOM listener per event, jadi
@@ -41,6 +41,17 @@ batching Phase 9:
   sehingga promise tidak pernah selesai saat pengguna menutup dialog. Fallback
   kini menyelesaikan hasil dengan `cancelled: true` dan melepas listener; jalur
   cancel maupun pemilihan file diuji di `runtime.mjs` (bagian 4.7).
+* `webSocket()` sebelumnya langsung mengembalikan handle berstatus `connecting`,
+  sehingga `send()` dapat dipanggil sebelum browser membuka koneksi. Sekarang
+  `await webSocket(url)` menunggu `open` atau status gagal/timeout, dan showcase
+  meminta URL server nyata alih-alih memakai `ws://echo` yang hanya ada di shim.
+* Showcase kini benar-benar menguji form submit/persist, sumber payload drag,
+  Tree yang dikomposisi dari state/conditional, Tab pada CodeEditor, animasi
+  canvas, API browser, dan calculator empat operasi melalui
+  `tests/web/showcase.mjs`.
+* Showcase monolitik dipisah menjadi shell `examples/showcase/main.plt`,
+  library `widgets.plt`/`design.plt`, dan satu modul per area fitur di
+  `examples/showcase/sections/`.
 
 Semua `path:line` ke `compiler/src/codegen/web/javascript.rs` dihitung ulang pada
 revisi ini: file itu tumbuh sekitar 150 baris karena pekerjaan batching, sehingga
@@ -153,15 +164,14 @@ Ditambah unit test di dalam crate: 32 di `platipus-cli`, 40 di
 `platipus-compiler`, 16 di `platipus-runtime`, 25 di `platipus-standard`.
 
 **Program `.plt` milik pengguna sekarang dijalankan, bukan hanya dikompilasi.**
-Ini yang berubah pada audit ini. `tests/web/main.rs` mengompilasi tujuh fixture
-ke direktori sementara lalu menjalankan `run.mjs`, `templates.mjs`,
-`lifecycle.mjs`, `events.mjs`, `runtime.mjs`, `ui.mjs`, dan `components.mjs` di
-atas `dom.mjs` hasil generate; ketujuhnya terdaftar di `HARNESSES`, dengan
-`run.mjs` memakai `examples/counter.plt` dan enam harness lain memakai
-`tests/web/fixtures/`. Direktori scratch dibersihkan setelah tiap harness.
-Ketujuhnya wajib menerima direktori build sebagai `argv[2]`, karena build
-direktori yang ter-commit akan basi dan harness yang membacanya menguji
-checkout, bukan compiler. Selain itu
+`tests/web/main.rs` membangun delapan entry termasuk showcase dengan import
+transitif, lalu menjalankan `run.mjs`, `templates.mjs`, `lifecycle.mjs`,
+`events.mjs`, `runtime.mjs`, `ui.mjs`, `components.mjs`, dan `showcase.mjs` di
+atas `dom.mjs` hasil generate. Kedelapannya terdaftar di `HARNESSES`; selain
+`examples/counter.plt` dan `examples/showcase/main.plt`, enam harness memakai
+fixture di `tests/web/fixtures/`. Direktori scratch dibersihkan setelah tiap
+harness. Semua script menerima direktori build sebagai `argv[2]`, agar tidak
+menguji artefak checkout yang basi. Selain itu
 `tests/cli/main.rs` menjalankan `plt test` melalui Node dan menjalankan `plt dev`
 sungguhan, menyalakan server, meminta `/`, lalu mengedit entry file ataupun file
 yang diimport dan menunggu sinyal reload
@@ -189,9 +199,10 @@ assertion listener dan penulisan `contenteditable` di `tests/web/ui.mjs`).
 Angka ini cocok dengan hitungan statis 305 test. Test yang butuh Node
 melompat sendiri bila `node` tidak ada di `PATH` (`tests/web/main.rs:52-55`,
 `tests/cli/main.rs:304-310`). Pada mesin audit Node v24.18.0 ada di `PATH`, jadi
-ketujuh harness benar-benar berjalan: 10 + 9 + 11 + 5 + 8 + 7 + 9 = 59
-assertion, nol gagal. `runtime.mjs` juga menguji pemilihan file dan pembatalan
-pada fallback `<input type="file">`.
+kedelapan harness benar-benar berjalan: 10 + 9 + 11 + 5 + 8 + 7 + 9 + 9 = 68
+check, nol gagal. `runtime.mjs` juga menguji pemilihan file dan pembatalan pada
+fallback `<input type="file">`; `showcase.mjs` menjalankan interaksi demo
+melalui module loader yang sama dengan build CLI.
 
 ### 4.3 Phase 2 - UI Core
 
@@ -432,7 +443,7 @@ dievaluasi di client.
 | fetch | **SELESAI** | `fetch()` di `compiler/src/codegen/web/javascript.rs:305-344` membungkus `globalThis.fetch` dan selalu resolve: sukses menjadi `{ request, status, ok, type, text, json, error }`, dan gagal menjadi objek yang sama dengan `ok: false` serta `error` terisi, jadi handler yang menulis hasilnya ke state tidak perlu menangkap rejection. |
 | clipboard | **SELESAI** | `clipboardWrite()`/`clipboardRead()` di `compiler/src/codegen/web/javascript.rs:346-366` memakai `navigator.clipboard` bila ada dan resolve `false`/`""` bila tidak tersedia. Shim hanya menyuntik clipboard bila `navigator` tidak memilikinya (guard getter-only di `compiler/src/codegen/web/dom.rs`). `EventCategory::Clipboard` di `compiler/src/ast/event.rs:36-49` tetap tidak terjangkau oleh `category_of()` (`compiler/src/semantic/events.rs:27-53`) dan tidak ada clipboard event di `ALL` (`compiler/src/ast/event.rs:94`); kanal event clipboard memang tidak menjadi bagian penyelesaian ini, tetapi jalur baca-tulis clipboard kini ada. |
 | file | **SELESAI** | `openFile()` di `compiler/src/codegen/web/javascript.rs` memakai `showOpenFilePicker` bila browser menyediakannya, menyusul fallback `<input type="file">`, dan resolve objek `{ name, size, type, text, cancelled }`. Fallback menangani event `change` dan `cancel`, lalu melepas kedua listener; `runtime.mjs` menguji pemilihan file, pembatalan, dan cleanup listener. |
-| WebSocket | **SELESAI** | `webSocket()` di `compiler/src/codegen/web/javascript.rs:417-466` membuat koneksi lewat `new WebSocket(url)` yang di-share per URL oleh `socketHandles`; `receive()` di `:468-476` menarik pesan berikutnya, mengantre dulu dan menunggu bila kosong; pesan masuk diambil dari `ws.onmessage` di `:443`. Shim test memakai `TestSocket` di `compiler/src/codegen/web/dom.rs` yang auto-open, mencatat `sent[]`, dan mendaftarkan dirinya ke `globalThis.__sockets`. |
+| WebSocket | **SELESAI** | `webSocket()` membuat koneksi lewat `new WebSocket(url)` yang di-share per URL; promise selesai saat koneksi terbuka atau menghasilkan status `error`, `closed`, `timeout`, atau `unavailable`. `send()` hanya mengirim saat status `open`; `receive()` mengantre pesan dan menyelesaikan `null` bila koneksi ditutup. Shim test memakai `TestSocket` yang auto-open dan echo. `runtime.mjs` memverifikasi status open serta send/receive. |
 
 Permukaan bahasa untuk fase ini adalah **9 builtin yang dipanggil langsung**:
 `fetch`, `writeClipboard`, `readClipboard`, `openFile`, `webSocket`, `receive`,
@@ -541,12 +552,12 @@ sebagai thunk, bukan lewat `eval`.
 Runner memakai `process.exitCode` di `compiler/src/codegen/web/tests.rs:111`,
 bukan `process.exit`, supaya output tidak terpotong saat stdout berupa pipe.
 
-**`tests/web/` sekarang berjalan di dalam `cargo test`.** Ketujuh harness
+**`tests/web/` sekarang berjalan di dalam `cargo test`.** Kedelapan harness
 mengimpor `installDom` dari `dom.mjs` di direktori build masing-masing, sehingga
-tidak ada lagi salinan shim di `tests/web/`. Kelimanya tidak perlu dijalankan
-manual setelah `plt build`; `tests/web/main.rs:50-88` melakukan build dan
-menjalankannya. Yang menguji program `.plt` milik pengguna lewat permukaannya
-sendiri adalah `plt test`.
+tidak ada lagi salinan shim di `tests/web/`. Kedelapannya tidak perlu dijalankan
+manual setelah `plt build`; `tests/web/main.rs` melakukan build (termasuk import
+transitif untuk showcase) dan menjalankannya. Yang menguji program `.plt` milik
+pengguna lewat permukaannya sendiri adalah `plt test`.
 
 ### 4.10 Phase 9 - Optimization
 
@@ -716,7 +727,7 @@ memuat file itu; warnanya memang hanya konvensi, bukan larangan.
 - [x] Isi `fixtures/valid/` dan `fixtures/invalid/` — sekarang 2 file valid dan 19 file invalid
 - [x] Sambungkan `tests/web/*.mjs` ke target `[[test]]` agar pengujian perilaku berjalan di CI
 - [x] Tambahkan test yang menutup B1 sampai B4 dan B6
-- [x] Hapus `cli/dist/` dan artefak hasil build yang basi di `tests/web/`; sekarang `tests/web/` berisi 7 harness, `main.rs`, dan 6 fixture `.plt`
+- [x] Hapus `cli/dist/` dan artefak hasil build yang basi di `tests/web/`; sekarang `tests/web/` berisi 8 harness, `main.rs`, dan 6 fixture `.plt`
 - [x] Perbaiki klaim `README.md`
 - [x] `cargo clippy --workspace --all-targets` bersih, nol warning
 - [ ] Jalankan `cargo fmt --all` untuk 19 file di `cli/`, `runtime/`,
@@ -756,7 +767,7 @@ memuat file itu; warnanya memang hanya konvensi, bukan larangan.
 | Klaim lama | Kenyataan sekarang |
 | --- | --- |
 | 281 test lulus | **305** lulus, 0 gagal. Snapshot sekarang: `codegen` 64, `cli` 31, unit test `platipus-compiler` 40. |
-| 5 harness web, 41 assertion | **7** harness, **59** assertion. `components.mjs` mencakup komponen; `runtime.mjs` menambah dua skenario fallback file picker. |
+| 5 harness web, 41 assertion | **8** harness, **68** check. `showcase.mjs` menguji aplikasi showcase beserta import dan interaksinya. |
 | Phase 7 **BELUM**, "tidak ada `getContext` di seluruh workspace" | Phase 7 **SEBAGIAN**. `getContext` ada di `compiler/src/codegen/web/dom.rs:175`, dan sepuluh builtin Phase 7 ada di `compiler/src/codegen/web/javascript.rs`. |
 | Phase 9 "6 dari 6 item bernilai nol" | **1 dari 6** berubah: batching **SEBAGIAN**. |
 | "Flag `busy` adalah penjaga reentrancy, bukan batching" | Benar untuk `busy`, tetapi tidak lagi untuk fase: kini ada dirty set dan batas dispatch (lihat 4.10). |
@@ -820,7 +831,8 @@ ini. Deviasi yang terverifikasi:
   disebut di sana. `roadmap.md` maupun `traceability.md` tidak disebut sama
   sekali di `docs/struktur.md`;
 * `examples/` disebut berisi 5 subdirektori di `docs/struktur.md:170-175`,
-  sedangkan isinya satu file, `examples/counter.plt`;
+  sedangkan isinya `examples/counter.plt` dan `examples/showcase/` dengan
+  shell, library, dan modul-modul section;
 * `tests/` disebut berisi 12 subdirektori di `docs/struktur.md:156-168`,
   sedangkan realitasnya 9 file `main.rs` datar.
 
@@ -899,7 +911,9 @@ artefak `cargo test`.
   file pada `fixtures/invalid/` adalah harapan diagnostic-nya, jadi
   `tests/fixtures/main.rs` bisa memverifikasi setiap file sebagai
   self-describing test;
-* `examples/` hanya berisi `examples/counter.plt`.
+* `examples/` berisi `examples/counter.plt` dan showcase modular di
+  `examples/showcase/` (`main.plt`, `widgets.plt`, `design.plt`, serta
+  `sections/*.plt`).
 
 ---
 
@@ -1018,13 +1032,14 @@ yang dipakai:
    node tests\web\run.mjs out
    ```
 
-  Ketujuh harness juga menolak berjalan tanpa direktori build, exit 2, supaya
+  Kedelapan harness juga menolak berjalan tanpa direktori build, exit 2, supaya
   tidak pernah membaca artefak yang tertinggal. Audit terakhir: 10, 9, 11, 5,
-  8, 7, dan 9 assertion lulus. `events.mjs` menguji event object dan binding
+  8, 7, 9, dan 9 check lulus. `events.mjs` menguji event object dan binding
   `scrollTop`; `runtime.mjs` menguji fetch, clipboard, file, WebSocket, storage,
   serta jalur file picker fallback; `ui.mjs` menguji canvas, editor, code editor,
   data grid, dan tree; `components.mjs` menguji input, roots, branch, swap, dan
-  disposal.
+  disposal; `showcase.mjs` menguji form, drag/drop, Tree, editor, canvas,
+  calculator, serta API browser dengan import showcase yang sesungguhnya.
 
 7. **Periksa klaim README** setiap kali README berubah, karena bagian Build
    Output dan bagian CLI paling cepat menjadi basi. Bandingkan dengan

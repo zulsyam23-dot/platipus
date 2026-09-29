@@ -429,18 +429,21 @@ function channelKey(name) {
   const socketHandles = new Map();
 
   /**
-   * `webSocket(url)` resolves to a handle `{ url, status, send(data), close() }`.
-   * Incoming messages are pulled with `receive(socket)`, which resolves to the
-   * next message or waits for one. The handle is shared per URL.
+   * `webSocket(url)` resolves after the connection opens or fails, returning a
+   * handle `{ url, status, send(data), close() }`. Incoming messages are pulled
+   * with `receive(socket)`, which resolves to the next message or waits for one.
+   * A pending connection is shared per URL.
    */
   function webSocket(url) {
-    if (socketHandles.has(String(url))) return Promise.resolve(socketHandles.get(String(url)));
+    const key = String(url);
+    if (socketHandles.has(key)) return socketHandles.get(key);
     const queue = [];
     const waiters = [];
     const handle = {
-      url: String(url),
+      url: key,
       status: "connecting",
       send(data) {
+        if (handle.status !== "open") return false;
         try {
           handle._ws?.send(String(data));
           return true;
@@ -459,35 +462,75 @@ function channelKey(name) {
       _queue: queue,
       _waiters: waiters,
     };
+    let settleReady;
+    let readySettled = false;
+    let timeoutId = null;
+    let socket = null;
+    let timedOut = false;
+    const ready = new Promise((resolve) => {
+      settleReady = resolve;
+    });
+    const settle = (status) => {
+      if (readySettled) return;
+      readySettled = true;
+      handle.status = status;
+      if (timeoutId != null) clearTimeout(timeoutId);
+      if (status !== "open" && socketHandles.get(key) === ready) {
+        socketHandles.delete(key);
+      }
+      settleReady(handle);
+    };
+    socketHandles.set(key, ready);
     const Socket = globalThis.WebSocket;
     if (typeof Socket !== "function") {
-      handle.status = "unavailable";
-      socketHandles.set(String(url), handle);
-      return Promise.resolve(handle);
+      settle("unavailable");
+      return ready;
     }
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      settle("timeout");
+      if (socketHandles.get(key) === ready) socketHandles.delete(key);
+      try {
+        socket?.close();
+      } catch (error) {
+        void error;
+      }
+    }, 10_000);
     try {
-      const ws = new Socket(String(url));
-      handle._ws = ws;
-      ws.onmessage = (event) => {
+      socket = new Socket(key);
+      handle._ws = socket;
+      socket.onopen = () => settle("open");
+      socket.onmessage = (event) => {
         const text =
           typeof event?.data === "string" ? event.data : String(event?.data ?? "");
         if (waiters.length > 0) waiters.shift()(text);
         else queue.push(text);
       };
-      ws.onerror = () => {
-        handle.status = "error";
+      socket.onerror = () => {
+        if (readySettled) {
+          handle.status = "error";
+          if (socketHandles.get(key) === ready) socketHandles.delete(key);
+        }
+        else settle("error");
+      };
+      socket.onclose = () => {
+        if (!readySettled) settle("closed");
+        else if (!timedOut) handle.status = "closed";
+        while (waiters.length > 0) waiters.shift()(null);
+        if (socketHandles.get(key) === ready) socketHandles.delete(key);
       };
     } catch (error) {
-      handle.status = "error";
+      void error;
+      settle("error");
     }
-    socketHandles.set(String(url), handle);
-    return Promise.resolve(handle);
+    return ready;
   }
 
   function receive(socket) {
     if (socket == null) return Promise.resolve(null);
     const queue = socket._queue ?? [];
     if (queue.length > 0) return Promise.resolve(queue.shift());
+    if (socket.status !== "open") return Promise.resolve(null);
     return new Promise((resolve) => {
       (socket._waiters ??= []).push(resolve);
     });
