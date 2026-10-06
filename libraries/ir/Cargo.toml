@@ -1,0 +1,17 @@
+[package]
+name = "platipus-ir"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Intermediate representation, lowering, verifier, and backend contract for Platipus"
+
+[lib]
+name = "platipus_ir"
+path = "src/lib.rs"
+
+[dependencies]
+platipus-diagnostics = { workspace = true }
+platipus-language = { workspace = true }
+platipus-testing = { workspace = true }

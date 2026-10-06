@@ -13,3 +13,4 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [dependencies]
+platipus-reactive = { workspace = true }

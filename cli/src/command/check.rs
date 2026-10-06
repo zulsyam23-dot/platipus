@@ -6,7 +6,7 @@ use crate::output::report;
 use crate::CliError;
 
 pub fn run(options: &Options) -> Result<ExitCode, CliError> {
-    let built = compile_entry(&options.entry)?;
+    let built = compile_entry(&options.entry, crate::command::RustMode::Check)?;
     report(&built.file, &built.compilation.warnings);
     if !options.quiet {
         println!(

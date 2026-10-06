@@ -13,6 +13,22 @@ use std::process::ExitCode;
 use crate::config::Options;
 use crate::CliError;
 
+/// Whether the Rust stage should type-check or fully build.
+#[derive(Debug, Clone, Copy)]
+pub enum RustMode {
+    Check,
+    Build,
+}
+
+impl From<RustMode> for platipus_compiler::rust::RustMode {
+    fn from(mode: RustMode) -> Self {
+        match mode {
+            RustMode::Check => platipus_compiler::rust::RustMode::Check,
+            RustMode::Build => platipus_compiler::rust::RustMode::Build,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     New,

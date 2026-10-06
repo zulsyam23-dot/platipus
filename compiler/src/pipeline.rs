@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::ast::Program;
 use crate::codegen::{Artifact, Target};
 use crate::diagnostics::{DiagnosticBag, Error, ErrorKind, SourceFile, Span, Warning};
-use crate::ir::{IrError, IrModule, lower_program, verify};
+use crate::ir::{IrError, IrModule, RustBridge, lower_program, verify};
 use crate::loader::{self, Loader};
 use crate::parser::parse;
 use crate::semantic::SemanticChecker;
@@ -66,7 +66,7 @@ pub fn build_file(
     let (program, bag) = analyse(path, source)?;
     imports_without_a_loader(&program)?;
     let warnings = bag.warnings().cloned().collect();
-    finish(program, path, warnings, target)
+    finish(program, path, warnings, target, None)
 }
 
 /// The result of compiling an entry with its modules: everything `build_file`
@@ -97,12 +97,33 @@ pub enum EntryFailure {
     },
 }
 
+/// Configuration for compiling `#[rust]` blocks during a build.
+#[derive(Debug, Clone)]
+pub struct RustBuild {
+    /// Directory holding the `target/rust` crate workspace.
+    pub workdir: PathBuf,
+    pub mode: crate::rust::RustMode,
+    /// `[rust.dependencies]` from the P2LT manifest, forwarded to Cargo.
+    pub rust_dependencies: Vec<(String, String)>,
+}
+
 /// Compiles the entry and every file it imports, transitively, as one program.
 pub fn build_entry(
     path: &str,
     source: &str,
     loader: &dyn Loader,
     target: &dyn Target,
+) -> Result<Loaded, EntryFailure> {
+    build_entry_rust(path, source, loader, target, None)
+}
+
+/// Compiles the entry with the Rust stage enabled.
+pub fn build_entry_rust(
+    path: &str,
+    source: &str,
+    loader: &dyn Loader,
+    target: &dyn Target,
+    rust: Option<&RustBuild>,
 ) -> Result<Loaded, EntryFailure> {
     let combined = loader::resolve_and_combine(path, source, loader).map_err(|failure| {
         EntryFailure::Module {
@@ -117,7 +138,27 @@ pub fn build_entry(
         Err(bag) => return Err(EntryFailure::Whole { file, bag }),
     };
     let warnings = bag.warnings().cloned().collect();
-    let compilation = match finish(program, &combined.label, warnings, target) {
+    let rust_bridge = match rust {
+        Some(config) => match crate::rust::compile_rust_with_deps(
+            &program,
+            &config.workdir,
+            config.mode,
+            &config.rust_dependencies,
+        ) {
+            Ok(Some(compilation)) => Some(RustBridge {
+                exports: compilation.exports,
+                wasm_b64: compilation
+                    .wasm_path
+                    .as_deref()
+                    .and_then(|path| std::fs::read(path).ok())
+                    .map(|bytes| crate::rust::base64_encode(&bytes)),
+            }),
+            Ok(None) => None,
+            Err(bag) => return Err(EntryFailure::Whole { file, bag }),
+        },
+        None => None,
+    };
+    let compilation = match finish(program, &combined.label, warnings, target, rust_bridge) {
         Ok(compilation) => compilation,
         Err(bag) => return Err(EntryFailure::Whole { file, bag }),
     };
@@ -138,6 +179,7 @@ fn finish(
     path: &str,
     warnings: Vec<Warning>,
     target: &dyn Target,
+    rust: Option<RustBridge>,
 ) -> Result<Compilation, DiagnosticBag> {
     let module = match lower_program(&program) {
         Some(module) => module,
@@ -146,7 +188,7 @@ fn finish(
     if let Err(errors) = verify(&module) {
         return Err(ir_failure(path, errors));
     }
-    let artifacts = match target.generate(&module) {
+    let artifacts = match target.generate(&module, rust.as_ref()) {
         Ok(artifacts) => artifacts,
         Err(error) => {
             let mut bag = DiagnosticBag::new();

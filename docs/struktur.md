@@ -1,5 +1,8 @@
 Struktur Proyek Bahasa Web Application
 
+> **Status:** Dokumen desain asli. Struktur proyek yang berlaku sekarang
+> ada di [docs/architecture.md](architecture.md).
+
 1. Tujuan Dokumen
 
 Dokumen ini mendefinisikan struktur proyek, pembagian tanggung jawab module, aturan modularisasi, hubungan antara compiler dan runtime, serta organisasi source code untuk bahasa pemrograman yang dirancang khusus untuk membangun aplikasi web modern.
@@ -9,17 +12,17 @@ Bahasa ini tidak menjadikan HTML, CSS, dan JavaScript sebagai tiga konsep utama 
 Model utama bahasa:
 
 Application
-    ↓
+    â†“
 Component
-    ↓
+    â†“
 Element
-    ↓
+    â†“
 State
-    ↓
+    â†“
 Event
-    ↓
+    â†“
 Reactive Runtime
-    ↓
+    â†“
 Web Runtime
 
 Struktur source code harus mencerminkan model tersebut.
@@ -50,24 +53,24 @@ Tidak boleh terdapat satu file pusat yang menampung seluruh implementasi.
 Contoh yang harus dihindari:
 
 runtime/src/
-├── element.rs      # semua element
-├── event.rs        # semua event
-├── state.rs        # semua state
-└── runtime.rs      # seluruh runtime
+â”œâ”€â”€ element.rs      # semua element
+â”œâ”€â”€ event.rs        # semua event
+â”œâ”€â”€ state.rs        # semua state
+â””â”€â”€ runtime.rs      # seluruh runtime
 
 Struktur tersebut akan cepat menjadi sulit dipelihara.
 
 Struktur yang diinginkan:
 
 runtime/src/
-├── element/
-├── event/
-├── state/
-├── style/
-├── layout/
-├── component/
-├── reactive/
-└── browser/
+â”œâ”€â”€ element/
+â”œâ”€â”€ event/
+â”œâ”€â”€ state/
+â”œâ”€â”€ style/
+â”œâ”€â”€ layout/
+â”œâ”€â”€ component/
+â”œâ”€â”€ reactive/
+â””â”€â”€ browser/
 
 ---
 
@@ -98,11 +101,11 @@ Setiap domain dapat memiliki submodule.
 Contoh:
 
 state/
-├── local/
-├── shared/
-├── global/
-├── derived/
-└── persistent/
+â”œâ”€â”€ local/
+â”œâ”€â”€ shared/
+â”œâ”€â”€ global/
+â”œâ”€â”€ derived/
+â””â”€â”€ persistent/
 
 Hal ini membuat lokasi sebuah fitur dapat diprediksi.
 
@@ -117,68 +120,68 @@ runtime/src/state/derived/
 Struktur awal repository:
 
 project/
-│
-├── Cargo.toml
-├── Cargo.lock
-├── README.md
-├── LICENSE
-│
-├── docs/
-│   ├── prd.md
-│   ├── struktur.md
-│   ├── syntax.md
-│   ├── architecture.md
-│   ├── runtime.md
-│   ├── compiler.md
-│   ├── state.md
-│   ├── event.md
-│   ├── element.md
-│   ├── component.md
-│   ├── style.md
-│   └── browser.md
-│
-├── compiler/
-│   ├── Cargo.toml
-│   └── src/
-│
-├── runtime/
-│   ├── Cargo.toml
-│   └── src/
-│
-├── standard/
-│   ├── Cargo.toml
-│   └── src/
-│
-├── cli/
-│   ├── Cargo.toml
-│   └── src/
-│
-├── tests/
-│   ├── parser/
-│   ├── semantic/
-│   ├── compiler/
-│   ├── element/
-│   ├── state/
-│   ├── event/
-│   ├── component/
-│   ├── style/
-│   ├── layout/
-│   ├── reactive/
-│   ├── browser/
-│   └── integration/
-│
-├── examples/
-│   ├── counter/
-│   ├── form/
-│   ├── dashboard/
-│   ├── todo/
-│   └── editor/
-│
-└── fixtures/
-    ├── valid/
-    └── invalid/
+â”‚
+â”œâ”€â”€ Cargo.toml
+â”œâ”€â”€ Cargo.lock
+â”œâ”€â”€ README.md
+â”œâ”€â”€ LICENSE
+â”‚
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ prd.md
+â”‚   â”œâ”€â”€ struktur.md
+â”‚   â”œâ”€â”€ syntax.md
+â”‚   â”œâ”€â”€ architecture.md
+â”‚   â”œâ”€â”€ runtime.md
+â”‚   â”œâ”€â”€ compiler.md
+â”‚   â”œâ”€â”€ state.md
+â”‚   â”œâ”€â”€ event.md
+â”‚   â”œâ”€â”€ element.md
+â”‚   â”œâ”€â”€ component.md
+â”‚   â”œâ”€â”€ style.md
+â”‚   â””â”€â”€ browser.md
+â”‚
+â”œâ”€â”€ compiler/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚
+â”œâ”€â”€ runtime/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚
+â”œâ”€â”€ standard/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚
+â”œâ”€â”€ cli/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ parser/
+â”‚   â”œâ”€â”€ semantic/
+â”‚   â”œâ”€â”€ compiler/
+â”‚   â”œâ”€â”€ element/
+â”‚   â”œâ”€â”€ state/
+â”‚   â”œâ”€â”€ event/
+â”‚   â”œâ”€â”€ component/
+â”‚   â”œâ”€â”€ style/
+â”‚   â”œâ”€â”€ layout/
+â”‚   â”œâ”€â”€ reactive/
+â”‚   â”œâ”€â”€ browser/
+â”‚   â””â”€â”€ integration/
+â”‚
+â”œâ”€â”€ examples/
+â”‚   â”œâ”€â”€ counter/
+â”‚   â”œâ”€â”€ form/
+â”‚   â”œâ”€â”€ dashboard/
+â”‚   â”œâ”€â”€ todo/
+â”‚   â””â”€â”€ editor/
+â”‚
+â””â”€â”€ fixtures/
+    â”œâ”€â”€ valid/
+    â””â”€â”€ invalid/
 
-«"standard/" hanya digunakan jika library standar memang diperlukan. Runtime tidak bergantung pada keberadaan standard library untuk konsep dasar UI.»
+Â«"standard/" hanya digunakan jika library standar memang diperlukan. Runtime tidak bergantung pada keberadaan standard library untuk konsep dasar UI.Â»
 
 ---
 
@@ -201,15 +204,15 @@ Dependency harus memiliki arah yang jelas.
 
 Model:
 
-              ┌────────────┐
-              │    CLI     │
-              └─────┬──────┘
-                    │
-          ┌─────────┴─────────┐
-          ↓                   ↓
-     ┌──────────┐       ┌──────────┐
-     │ Compiler │       │ Runtime  │
-     └──────────┘       └──────────┘
+              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+              â”‚    CLI     â”‚
+              â””â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜
+                    â”‚
+          â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+          â†“                   â†“
+     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”       â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+     â”‚ Compiler â”‚       â”‚ Runtime  â”‚
+     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜       â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
 Compiler tidak boleh bergantung pada implementasi UI runtime secara langsung hanya untuk melakukan parsing.
 
@@ -222,98 +225,98 @@ Compiler bertanggung jawab mengubah source language menjadi bentuk yang dapat di
 Pipeline utama:
 
 Source
-  ↓
+  â†“
 Lexer
-  ↓
+  â†“
 Token
-  ↓
+  â†“
 Parser
-  ↓
+  â†“
 AST
-  ↓
+  â†“
 Semantic Analysis
-  ↓
+  â†“
 Intermediate Representation
-  ↓
+  â†“
 Code Generation
-  ↓
+  â†“
 Web Output
 
 Struktur:
 
 compiler/
-└── src/
-    ├── lib.rs
-    │
-    ├── lexer/
-    │   ├── mod.rs
-    │   ├── scanner.rs
-    │   ├── token.rs
-    │   ├── keyword.rs
-    │   ├── operator.rs
-    │   └── literal.rs
-    │
-    ├── parser/
-    │   ├── mod.rs
-    │   ├── app.rs
-    │   ├── component.rs
-    │   ├── element.rs
-    │   ├── state.rs
-    │   ├── event.rs
-    │   ├── style.rs
-    │   ├── expression.rs
-    │   ├── statement.rs
-    │   └── function.rs
-    │
-    ├── ast/
-    │   ├── mod.rs
-    │   ├── app.rs
-    │   ├── component.rs
-    │   ├── element.rs
-    │   ├── state.rs
-    │   ├── event.rs
-    │   ├── style.rs
-    │   ├── expression.rs
-    │   ├── statement.rs
-    │   └── function.rs
-    │
-    ├── semantic/
-    │   ├── mod.rs
-    │   ├── scope.rs
-    │   ├── symbol.rs
-    │   ├── type_check.rs
-    │   ├── component.rs
-    │   ├── element.rs
-    │   ├── state.rs
-    │   ├── event.rs
-    │   ├── expression.rs
-    │   └── diagnostics.rs
-    │
-    ├── ir/
-    │   ├── mod.rs
-    │   ├── module.rs
-    │   ├── component.rs
-    │   ├── element.rs
-    │   ├── state.rs
-    │   ├── event.rs
-    │   ├── expression.rs
-    │   └── verifier.rs
-    │
-    ├── codegen/
-    │   ├── mod.rs
-    │   ├── elements/
-    │   ├── components/
-    │   ├── state/
-    │   ├── events/
-    │   ├── style/
-    │   ├── layout/
-    │   └── web/
-    │
-    └── diagnostics/
-        ├── mod.rs
-        ├── error.rs
-        ├── warning.rs
-        └── span.rs
+â””â”€â”€ src/
+    â”œâ”€â”€ lib.rs
+    â”‚
+    â”œâ”€â”€ lexer/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ scanner.rs
+    â”‚   â”œâ”€â”€ token.rs
+    â”‚   â”œâ”€â”€ keyword.rs
+    â”‚   â”œâ”€â”€ operator.rs
+    â”‚   â””â”€â”€ literal.rs
+    â”‚
+    â”œâ”€â”€ parser/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ app.rs
+    â”‚   â”œâ”€â”€ component.rs
+    â”‚   â”œâ”€â”€ element.rs
+    â”‚   â”œâ”€â”€ state.rs
+    â”‚   â”œâ”€â”€ event.rs
+    â”‚   â”œâ”€â”€ style.rs
+    â”‚   â”œâ”€â”€ expression.rs
+    â”‚   â”œâ”€â”€ statement.rs
+    â”‚   â””â”€â”€ function.rs
+    â”‚
+    â”œâ”€â”€ ast/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ app.rs
+    â”‚   â”œâ”€â”€ component.rs
+    â”‚   â”œâ”€â”€ element.rs
+    â”‚   â”œâ”€â”€ state.rs
+    â”‚   â”œâ”€â”€ event.rs
+    â”‚   â”œâ”€â”€ style.rs
+    â”‚   â”œâ”€â”€ expression.rs
+    â”‚   â”œâ”€â”€ statement.rs
+    â”‚   â””â”€â”€ function.rs
+    â”‚
+    â”œâ”€â”€ semantic/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ scope.rs
+    â”‚   â”œâ”€â”€ symbol.rs
+    â”‚   â”œâ”€â”€ type_check.rs
+    â”‚   â”œâ”€â”€ component.rs
+    â”‚   â”œâ”€â”€ element.rs
+    â”‚   â”œâ”€â”€ state.rs
+    â”‚   â”œâ”€â”€ event.rs
+    â”‚   â”œâ”€â”€ expression.rs
+    â”‚   â””â”€â”€ diagnostics.rs
+    â”‚
+    â”œâ”€â”€ ir/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ module.rs
+    â”‚   â”œâ”€â”€ component.rs
+    â”‚   â”œâ”€â”€ element.rs
+    â”‚   â”œâ”€â”€ state.rs
+    â”‚   â”œâ”€â”€ event.rs
+    â”‚   â”œâ”€â”€ expression.rs
+    â”‚   â””â”€â”€ verifier.rs
+    â”‚
+    â”œâ”€â”€ codegen/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ elements/
+    â”‚   â”œâ”€â”€ components/
+    â”‚   â”œâ”€â”€ state/
+    â”‚   â”œâ”€â”€ events/
+    â”‚   â”œâ”€â”€ style/
+    â”‚   â”œâ”€â”€ layout/
+    â”‚   â””â”€â”€ web/
+    â”‚
+    â””â”€â”€ diagnostics/
+        â”œâ”€â”€ mod.rs
+        â”œâ”€â”€ error.rs
+        â”œâ”€â”€ warning.rs
+        â””â”€â”€ span.rs
 
 ---
 
@@ -324,12 +327,12 @@ Lexer hanya bertanggung jawab mengubah karakter menjadi token.
 Struktur:
 
 lexer/
-├── mod.rs
-├── scanner.rs
-├── token.rs
-├── keyword.rs
-├── operator.rs
-└── literal.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ scanner.rs
+â”œâ”€â”€ token.rs
+â”œâ”€â”€ keyword.rs
+â”œâ”€â”€ operator.rs
+â””â”€â”€ literal.rs
 
 Contoh source:
 
@@ -353,16 +356,16 @@ Parser mengubah token menjadi AST.
 Struktur:
 
 parser/
-├── mod.rs
-├── app.rs
-├── component.rs
-├── element.rs
-├── state.rs
-├── event.rs
-├── style.rs
-├── expression.rs
-├── statement.rs
-└── function.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ app.rs
+â”œâ”€â”€ component.rs
+â”œâ”€â”€ element.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ style.rs
+â”œâ”€â”€ expression.rs
+â”œâ”€â”€ statement.rs
+â””â”€â”€ function.rs
 
 Parser tidak bertanggung jawab menjalankan aplikasi.
 
@@ -385,24 +388,24 @@ AST merepresentasikan struktur bahasa.
 Contoh konsep:
 
 App
- ├── Component
- │    ├── Input
- │    ├── State
- │    ├── Element
- │    └── Event
+ â”œâ”€â”€ Component
+ â”‚    â”œâ”€â”€ Input
+ â”‚    â”œâ”€â”€ State
+ â”‚    â”œâ”€â”€ Element
+ â”‚    â””â”€â”€ Event
 
 Struktur AST:
 
 ast/
-├── app.rs
-├── component.rs
-├── element.rs
-├── state.rs
-├── event.rs
-├── style.rs
-├── expression.rs
-├── statement.rs
-└── function.rs
+â”œâ”€â”€ app.rs
+â”œâ”€â”€ component.rs
+â”œâ”€â”€ element.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ style.rs
+â”œâ”€â”€ expression.rs
+â”œâ”€â”€ statement.rs
+â””â”€â”€ function.rs
 
 AST harus merepresentasikan bahasa, bukan detail implementasi browser.
 
@@ -446,15 +449,15 @@ Semantic analyzer memeriksa:
 Struktur:
 
 semantic/
-├── scope.rs
-├── symbol.rs
-├── type_check.rs
-├── component.rs
-├── element.rs
-├── state.rs
-├── event.rs
-├── expression.rs
-└── diagnostics.rs
+â”œâ”€â”€ scope.rs
+â”œâ”€â”€ symbol.rs
+â”œâ”€â”€ type_check.rs
+â”œâ”€â”€ component.rs
+â”œâ”€â”€ element.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ expression.rs
+â””â”€â”€ diagnostics.rs
 
 ---
 
@@ -465,25 +468,25 @@ IR digunakan sebagai bentuk perantara antara semantic analysis dan code generati
 Struktur:
 
 ir/
-├── mod.rs
-├── module.rs
-├── component.rs
-├── element.rs
-├── state.rs
-├── event.rs
-├── expression.rs
-└── verifier.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ module.rs
+â”œâ”€â”€ component.rs
+â”œâ”€â”€ element.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ expression.rs
+â””â”€â”€ verifier.rs
 
 IR harus memiliki verifier.
 
 Aturan:
 
 Perubahan IR
-      ↓
+      â†“
 Update verifier
-      ↓
+      â†“
 Regression test
-      ↓
+      â†“
 Codegen test
 
 IR tidak boleh berubah tanpa memperbarui verifier.
@@ -497,48 +500,48 @@ Codegen menerjemahkan IR menjadi target.
 Struktur:
 
 codegen/
-├── mod.rs
-│
-├── elements/
-│   ├── mod.rs
-│   ├── button.rs
-│   ├── input.rs
-│   ├── text.rs
-│   └── ...
-│
-├── components/
-│   ├── mod.rs
-│   └── component.rs
-│
-├── state/
-│   ├── mod.rs
-│   ├── local.rs
-│   ├── shared.rs
-│   ├── global.rs
-│   └── derived.rs
-│
-├── events/
-│   ├── mod.rs
-│   ├── pointer.rs
-│   ├── keyboard.rs
-│   ├── input.rs
-│   └── custom.rs
-│
-├── style/
-│   ├── mod.rs
-│   └── compiler.rs
-│
-├── layout/
-│   ├── mod.rs
-│   └── compiler.rs
-│
-└── web/
-    ├── mod.rs
-    ├── html.rs
-    ├── css.rs
-    ├── javascript.rs
-    ├── wasm.rs
-    └── bundle.rs
+â”œâ”€â”€ mod.rs
+â”‚
+â”œâ”€â”€ elements/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ button.rs
+â”‚   â”œâ”€â”€ input.rs
+â”‚   â”œâ”€â”€ text.rs
+â”‚   â””â”€â”€ ...
+â”‚
+â”œâ”€â”€ components/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â””â”€â”€ component.rs
+â”‚
+â”œâ”€â”€ state/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ local.rs
+â”‚   â”œâ”€â”€ shared.rs
+â”‚   â”œâ”€â”€ global.rs
+â”‚   â””â”€â”€ derived.rs
+â”‚
+â”œâ”€â”€ events/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ pointer.rs
+â”‚   â”œâ”€â”€ keyboard.rs
+â”‚   â”œâ”€â”€ input.rs
+â”‚   â””â”€â”€ custom.rs
+â”‚
+â”œâ”€â”€ style/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â””â”€â”€ compiler.rs
+â”‚
+â”œâ”€â”€ layout/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â””â”€â”€ compiler.rs
+â”‚
+â””â”€â”€ web/
+    â”œâ”€â”€ mod.rs
+    â”œâ”€â”€ html.rs
+    â”œâ”€â”€ css.rs
+    â”œâ”€â”€ javascript.rs
+    â”œâ”€â”€ wasm.rs
+    â””â”€â”€ bundle.rs
 
 HTML/CSS/JavaScript di sini adalah target implementasi, bukan konsep utama bahasa.
 
@@ -551,21 +554,21 @@ Runtime adalah sistem yang menjalankan hasil compiler.
 Struktur utama:
 
 runtime/
-└── src/
-    ├── lib.rs
-    │
-    ├── element/
-    ├── component/
-    ├── state/
-    ├── event/
-    ├── style/
-    ├── layout/
-    ├── reactive/
-    ├── animation/
-    ├── browser/
-    ├── render/
-    ├── scheduler/
-    └── error/
+â””â”€â”€ src/
+    â”œâ”€â”€ lib.rs
+    â”‚
+    â”œâ”€â”€ element/
+    â”œâ”€â”€ component/
+    â”œâ”€â”€ state/
+    â”œâ”€â”€ event/
+    â”œâ”€â”€ style/
+    â”œâ”€â”€ layout/
+    â”œâ”€â”€ reactive/
+    â”œâ”€â”€ animation/
+    â”œâ”€â”€ browser/
+    â”œâ”€â”€ render/
+    â”œâ”€â”€ scheduler/
+    â””â”€â”€ error/
 
 ---
 
@@ -612,63 +615,63 @@ Viewport
 Struktur:
 
 element/
-├── mod.rs
-│
-├── button/
-│   ├── mod.rs
-│   ├── state.rs
-│   ├── event.rs
-│   ├── style.rs
-│   └── render.rs
-│
-├── input/
-│   ├── mod.rs
-│   ├── state.rs
-│   ├── event.rs
-│   ├── style.rs
-│   └── render.rs
-│
-├── text/
-│   ├── mod.rs
-│   ├── style.rs
-│   └── render.rs
-│
-├── image/
-│   ├── mod.rs
-│   ├── state.rs
-│   ├── style.rs
-│   └── render.rs
-│
-├── container/
-│   ├── mod.rs
-│   ├── layout.rs
-│   ├── style.rs
-│   └── render.rs
-│
-├── row/
-├── column/
-├── stack/
-├── grid/
-├── panel/
-├── splitter/
-├── scroll/
-│
-├── list/
-├── table/
-├── tree/
-├── data_grid/
-│
-├── dialog/
-├── popover/
-├── tooltip/
-├── tabs/
-├── sidebar/
-├── toolbar/
-│
-├── canvas/
-├── editor/
-├── code_editor/
-└── viewport/
+â”œâ”€â”€ mod.rs
+â”‚
+â”œâ”€â”€ button/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â”œâ”€â”€ event.rs
+â”‚   â”œâ”€â”€ style.rs
+â”‚   â””â”€â”€ render.rs
+â”‚
+â”œâ”€â”€ input/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â”œâ”€â”€ event.rs
+â”‚   â”œâ”€â”€ style.rs
+â”‚   â””â”€â”€ render.rs
+â”‚
+â”œâ”€â”€ text/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ style.rs
+â”‚   â””â”€â”€ render.rs
+â”‚
+â”œâ”€â”€ image/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â”œâ”€â”€ style.rs
+â”‚   â””â”€â”€ render.rs
+â”‚
+â”œâ”€â”€ container/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ layout.rs
+â”‚   â”œâ”€â”€ style.rs
+â”‚   â””â”€â”€ render.rs
+â”‚
+â”œâ”€â”€ row/
+â”œâ”€â”€ column/
+â”œâ”€â”€ stack/
+â”œâ”€â”€ grid/
+â”œâ”€â”€ panel/
+â”œâ”€â”€ splitter/
+â”œâ”€â”€ scroll/
+â”‚
+â”œâ”€â”€ list/
+â”œâ”€â”€ table/
+â”œâ”€â”€ tree/
+â”œâ”€â”€ data_grid/
+â”‚
+â”œâ”€â”€ dialog/
+â”œâ”€â”€ popover/
+â”œâ”€â”€ tooltip/
+â”œâ”€â”€ tabs/
+â”œâ”€â”€ sidebar/
+â”œâ”€â”€ toolbar/
+â”‚
+â”œâ”€â”€ canvas/
+â”œâ”€â”€ editor/
+â”œâ”€â”€ code_editor/
+â””â”€â”€ viewport/
 
 ---
 
@@ -679,29 +682,29 @@ Element yang sederhana tidak harus memiliki seluruh file.
 Contoh sederhana:
 
 text/
-├── mod.rs
-├── style.rs
-└── render.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ style.rs
+â””â”€â”€ render.rs
 
 Element kompleks:
 
 data_grid/
-├── mod.rs
-├── state.rs
-├── event.rs
-├── selection.rs
-├── sorting.rs
-├── filtering.rs
-├── virtualization.rs
-├── column.rs
-├── row.rs
-├── style.rs
-├── layout.rs
-└── render.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ selection.rs
+â”œâ”€â”€ sorting.rs
+â”œâ”€â”€ filtering.rs
+â”œâ”€â”€ virtualization.rs
+â”œâ”€â”€ column.rs
+â”œâ”€â”€ row.rs
+â”œâ”€â”€ style.rs
+â”œâ”€â”€ layout.rs
+â””â”€â”€ render.rs
 
 Prinsipnya:
 
-«Kompleksitas element menentukan jumlah submodule.»
+Â«Kompleksitas element menentukan jumlah submodule.Â»
 
 Jangan membuat struktur kosong hanya demi mengikuti pola.
 
@@ -714,11 +717,11 @@ Runtime membutuhkan registry untuk mengenali primitive element.
 Contoh:
 
 element/
-├── mod.rs
-├── registry.rs
-├── button/
-├── input/
-└── ...
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ registry.rs
+â”œâ”€â”€ button/
+â”œâ”€â”€ input/
+â””â”€â”€ ...
 
 Registry bertugas mengetahui:
 
@@ -743,45 +746,45 @@ State adalah salah satu fondasi utama bahasa.
 Struktur:
 
 state/
-├── mod.rs
-│
-├── local/
-│   ├── mod.rs
-│   ├── state.rs
-│   └── storage.rs
-│
-├── shared/
-│   ├── mod.rs
-│   ├── state.rs
-│   └── scope.rs
-│
-├── global/
-│   ├── mod.rs
-│   └── state.rs
-│
-├── derived/
-│   ├── mod.rs
-│   ├── state.rs
-│   └── dependency.rs
-│
-├── persistent/
-│   ├── mod.rs
-│   ├── state.rs
-│   └── storage.rs
-│
-├── dependency/
-│   ├── mod.rs
-│   ├── graph.rs
-│   ├── tracker.rs
-│   └── watcher.rs
-│
-├── transaction/
-│   ├── mod.rs
-│   └── transaction.rs
-│
-└── scheduler/
-    ├── mod.rs
-    └── scheduler.rs
+â”œâ”€â”€ mod.rs
+â”‚
+â”œâ”€â”€ local/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â””â”€â”€ storage.rs
+â”‚
+â”œâ”€â”€ shared/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â””â”€â”€ scope.rs
+â”‚
+â”œâ”€â”€ global/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â””â”€â”€ state.rs
+â”‚
+â”œâ”€â”€ derived/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â””â”€â”€ dependency.rs
+â”‚
+â”œâ”€â”€ persistent/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state.rs
+â”‚   â””â”€â”€ storage.rs
+â”‚
+â”œâ”€â”€ dependency/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ graph.rs
+â”‚   â”œâ”€â”€ tracker.rs
+â”‚   â””â”€â”€ watcher.rs
+â”‚
+â”œâ”€â”€ transaction/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â””â”€â”€ transaction.rs
+â”‚
+â””â”€â”€ scheduler/
+    â”œâ”€â”€ mod.rs
+    â””â”€â”€ scheduler.rs
 
 ---
 
@@ -828,19 +831,19 @@ Nilainya dapat disimpan dan dipulihkan.
 Reactive runtime harus mengetahui hubungan:
 
 State
-  ↓
+  â†“
 Derived State
-  ↓
+  â†“
 Component
-  ↓
+  â†“
 Element
 
 Contoh:
 
 count
-  ↓
+  â†“
 doubleCount
-  ↓
+  â†“
 Text
 
 Jika:
@@ -862,81 +865,81 @@ Tidak perlu melakukan render seluruh aplikasi.
 Event dipisahkan berdasarkan domain.
 
 event/
-├── mod.rs
-│
-├── pointer/
-│   ├── mod.rs
-│   ├── click.rs
-│   ├── double_click.rs
-│   ├── mouse.rs
-│   └── pointer.rs
-│
-├── keyboard/
-│   ├── mod.rs
-│   ├── key_down.rs
-│   ├── key_up.rs
-│   └── key_press.rs
-│
-├── input/
-│   ├── mod.rs
-│   ├── input.rs
-│   ├── change.rs
-│   └── composition.rs
-│
-├── focus/
-│   ├── mod.rs
-│   ├── focus.rs
-│   └── blur.rs
-│
-├── form/
-│   ├── mod.rs
-│   ├── submit.rs
-│   ├── reset.rs
-│   └── validation.rs
-│
-├── drag/
-│   ├── mod.rs
-│   ├── drag_start.rs
-│   ├── drag.rs
-│   ├── drag_over.rs
-│   ├── drop.rs
-│   └── drag_end.rs
-│
-├── clipboard/
-│   ├── mod.rs
-│   ├── copy.rs
-│   ├── cut.rs
-│   └── paste.rs
-│
-├── media/
-│   ├── mod.rs
-│   ├── play.rs
-│   ├── pause.rs
-│   ├── ended.rs
-│   └── time_update.rs
-│
-├── lifecycle/
-│   ├── mod.rs
-│   ├── create.rs
-│   ├── mount.rs
-│   ├── update.rs
-│   └── destroy.rs
-│
-├── animation/
-│   ├── mod.rs
-│   ├── animation.rs
-│   └── transition.rs
-│
-├── application/
-│   ├── mod.rs
-│   ├── state_change.rs
-│   ├── route_change.rs
-│   └── component_change.rs
-│
-└── custom/
-    ├── mod.rs
-    ├── event.rs
-    └── emitter.rs
+â”œâ”€â”€ mod.rs
+â”‚
+â”œâ”€â”€ pointer/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ click.rs
+â”‚   â”œâ”€â”€ double_click.rs
+â”‚   â”œâ”€â”€ mouse.rs
+â”‚   â””â”€â”€ pointer.rs
+â”‚
+â”œâ”€â”€ keyboard/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ key_down.rs
+â”‚   â”œâ”€â”€ key_up.rs
+â”‚   â””â”€â”€ key_press.rs
+â”‚
+â”œâ”€â”€ input/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ input.rs
+â”‚   â”œâ”€â”€ change.rs
+â”‚   â””â”€â”€ composition.rs
+â”‚
+â”œâ”€â”€ focus/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ focus.rs
+â”‚   â””â”€â”€ blur.rs
+â”‚
+â”œâ”€â”€ form/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ submit.rs
+â”‚   â”œâ”€â”€ reset.rs
+â”‚   â””â”€â”€ validation.rs
+â”‚
+â”œâ”€â”€ drag/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ drag_start.rs
+â”‚   â”œâ”€â”€ drag.rs
+â”‚   â”œâ”€â”€ drag_over.rs
+â”‚   â”œâ”€â”€ drop.rs
+â”‚   â””â”€â”€ drag_end.rs
+â”‚
+â”œâ”€â”€ clipboard/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ copy.rs
+â”‚   â”œâ”€â”€ cut.rs
+â”‚   â””â”€â”€ paste.rs
+â”‚
+â”œâ”€â”€ media/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ play.rs
+â”‚   â”œâ”€â”€ pause.rs
+â”‚   â”œâ”€â”€ ended.rs
+â”‚   â””â”€â”€ time_update.rs
+â”‚
+â”œâ”€â”€ lifecycle/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ create.rs
+â”‚   â”œâ”€â”€ mount.rs
+â”‚   â”œâ”€â”€ update.rs
+â”‚   â””â”€â”€ destroy.rs
+â”‚
+â”œâ”€â”€ animation/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ animation.rs
+â”‚   â””â”€â”€ transition.rs
+â”‚
+â”œâ”€â”€ application/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ state_change.rs
+â”‚   â”œâ”€â”€ route_change.rs
+â”‚   â””â”€â”€ component_change.rs
+â”‚
+â””â”€â”€ custom/
+    â”œâ”€â”€ mod.rs
+    â”œâ”€â”€ event.rs
+    â””â”€â”€ emitter.rs
 
 ---
 
@@ -1015,14 +1018,14 @@ Component adalah unit utama untuk membangun UI yang dapat digunakan kembali.
 Struktur runtime:
 
 component/
-├── mod.rs
-├── instance.rs
-├── tree.rs
-├── lifecycle.rs
-├── input.rs
-├── output.rs
-├── context.rs
-└── registry.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ instance.rs
+â”œâ”€â”€ tree.rs
+â”œâ”€â”€ lifecycle.rs
+â”œâ”€â”€ input.rs
+â”œâ”€â”€ output.rs
+â”œâ”€â”€ context.rs
+â””â”€â”€ registry.rs
 
 Component memiliki:
 
@@ -1041,11 +1044,11 @@ Output
 Lifecycle:
 
 Create
-  ↓
+  â†“
 Mount
-  ↓
+  â†“
 Update
-  ↓
+  â†“
 Destroy
 
 Event lifecycle:
@@ -1079,35 +1082,35 @@ Style bukan HTML/CSS mentah sebagai konsep utama bahasa.
 Struktur:
 
 style/
-├── mod.rs
-├── property/
-│   ├── mod.rs
-│   ├── color.rs
-│   ├── size.rs
-│   ├── spacing.rs
-│   ├── typography.rs
-│   ├── border.rs
-│   └── shadow.rs
-│
-├── state/
-│   ├── mod.rs
-│   ├── normal.rs
-│   ├── hover.rs
-│   ├── pressed.rs
-│   ├── focused.rs
-│   ├── disabled.rs
-│   └── selected.rs
-│
-├── theme/
-│   ├── mod.rs
-│   ├── theme.rs
-│   └── token.rs
-│
-├── responsive/
-│   ├── mod.rs
-│   └── breakpoint.rs
-│
-└── resolver.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ property/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ color.rs
+â”‚   â”œâ”€â”€ size.rs
+â”‚   â”œâ”€â”€ spacing.rs
+â”‚   â”œâ”€â”€ typography.rs
+â”‚   â”œâ”€â”€ border.rs
+â”‚   â””â”€â”€ shadow.rs
+â”‚
+â”œâ”€â”€ state/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ normal.rs
+â”‚   â”œâ”€â”€ hover.rs
+â”‚   â”œâ”€â”€ pressed.rs
+â”‚   â”œâ”€â”€ focused.rs
+â”‚   â”œâ”€â”€ disabled.rs
+â”‚   â””â”€â”€ selected.rs
+â”‚
+â”œâ”€â”€ theme/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â”œâ”€â”€ theme.rs
+â”‚   â””â”€â”€ token.rs
+â”‚
+â”œâ”€â”€ responsive/
+â”‚   â”œâ”€â”€ mod.rs
+â”‚   â””â”€â”€ breakpoint.rs
+â”‚
+â””â”€â”€ resolver.rs
 
 ---
 
@@ -1151,18 +1154,18 @@ style {
 Layout merupakan subsystem tersendiri.
 
 layout/
-├── mod.rs
-├── node.rs
-├── constraints.rs
-├── measurement.rs
-├── alignment.rs
-├── sizing.rs
-├── spacing.rs
-├── overflow.rs
-├── responsive.rs
-├── scroll.rs
-├── resize.rs
-└── engine.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ node.rs
+â”œâ”€â”€ constraints.rs
+â”œâ”€â”€ measurement.rs
+â”œâ”€â”€ alignment.rs
+â”œâ”€â”€ sizing.rs
+â”œâ”€â”€ spacing.rs
+â”œâ”€â”€ overflow.rs
+â”œâ”€â”€ responsive.rs
+â”œâ”€â”€ scroll.rs
+â”œâ”€â”€ resize.rs
+â””â”€â”€ engine.rs
 
 Primitive layout:
 
@@ -1201,7 +1204,7 @@ Element tidak boleh masing-masing memiliki implementasi layout engine sendiri.
 Element menggunakan subsystem:
 
 element
-   ↓
+   â†“
 layout
 
 ---
@@ -1213,28 +1216,28 @@ Reactive runtime adalah penghubung antara state, event dan UI.
 Struktur:
 
 reactive/
-├── mod.rs
-├── signal.rs
-├── dependency.rs
-├── effect.rs
-├── watcher.rs
-├── scheduler.rs
-├── batch.rs
-├── update.rs
-└── invalidation.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ signal.rs
+â”œâ”€â”€ dependency.rs
+â”œâ”€â”€ effect.rs
+â”œâ”€â”€ watcher.rs
+â”œâ”€â”€ scheduler.rs
+â”œâ”€â”€ batch.rs
+â”œâ”€â”€ update.rs
+â””â”€â”€ invalidation.rs
 
 Model:
 
 Event
-  ↓
+  â†“
 State Change
-  ↓
+  â†“
 Dependency Tracking
-  ↓
+  â†“
 Invalidation
-  ↓
+  â†“
 Scheduler
-  ↓
+  â†“
 Minimal UI Update
 
 ---
@@ -1248,11 +1251,11 @@ Contoh:
 State A berubah
 State B berubah
 State C berubah
-        ↓
+        â†“
      Batch
-        ↓
+        â†“
 Dependency calculation
-        ↓
+        â†“
 UI update
 
 Tujuannya menghindari update berulang yang tidak diperlukan.
@@ -1266,13 +1269,13 @@ Runtime harus dapat menentukan bagian yang perlu diperbarui.
 Contoh:
 
 state count
-   ↓
+   â†“
 Text count
 
 Ketika "count" berubah:
 
 count invalid
-   ↓
+   â†“
 Text invalid
 
 Element lain yang tidak bergantung pada "count" tidak perlu dirender ulang.
@@ -1284,12 +1287,12 @@ Element lain yang tidak bergantung pada "count" tidak perlu dirender ulang.
 Animation subsystem:
 
 animation/
-├── mod.rs
-├── animation.rs
-├── transition.rs
-├── timeline.rs
-├── keyframe.rs
-└── scheduler.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ animation.rs
+â”œâ”€â”€ transition.rs
+â”œâ”€â”€ timeline.rs
+â”œâ”€â”€ keyframe.rs
+â””â”€â”€ scheduler.rs
 
 Animation harus dapat berintegrasi dengan:
 
@@ -1314,18 +1317,18 @@ Kemudian style/runtime dapat menentukan transition.
 Browser functionality dikelompokkan secara terpisah.
 
 browser/
-├── mod.rs
-├── fetch/
-├── websocket/
-├── storage/
-├── clipboard/
-├── file/
-├── url/
-├── history/
-├── media/
-├── canvas/
-├── worker/
-└── notification/
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ fetch/
+â”œâ”€â”€ websocket/
+â”œâ”€â”€ storage/
+â”œâ”€â”€ clipboard/
+â”œâ”€â”€ file/
+â”œâ”€â”€ url/
+â”œâ”€â”€ history/
+â”œâ”€â”€ media/
+â”œâ”€â”€ canvas/
+â”œâ”€â”€ worker/
+â””â”€â”€ notification/
 
 Contoh:
 
@@ -1342,13 +1345,13 @@ Browser API tidak boleh membuat developer harus menggunakan DOM secara langsung 
 Rendering dipisahkan dari element definition.
 
 render/
-├── mod.rs
-├── tree.rs
-├── node.rs
-├── renderer.rs
-├── mount.rs
-├── patch.rs
-└── diff.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ tree.rs
+â”œâ”€â”€ node.rs
+â”œâ”€â”€ renderer.rs
+â”œâ”€â”€ mount.rs
+â”œâ”€â”€ patch.rs
+â””â”€â”€ diff.rs
 
 Element mendefinisikan perilakunya.
 
@@ -1357,13 +1360,13 @@ Render system menentukan bagaimana tree tersebut diwujudkan pada target.
 Model:
 
 Element
-   ↓
+   â†“
 Render Node
-   ↓
+   â†“
 Render Tree
-   ↓
+   â†“
 Renderer
-   ↓
+   â†“
 Browser
 
 ---
@@ -1373,27 +1376,27 @@ Browser
 Bahasa tidak mendesain aplikasi berdasarkan:
 
 DOM
- ↓
+ â†“
 HTML
- ↓
+ â†“
 JavaScript
 
 Model utama:
 
 Application
- ↓
+ â†“
 Component
- ↓
+ â†“
 Element
- ↓
+ â†“
 State
- ↓
+ â†“
 Event
- ↓
+ â†“
 Reactive Runtime
- ↓
+ â†“
 Renderer
- ↓
+ â†“
 Browser
 
 DOM dapat digunakan sebagai implementasi target browser.
@@ -1407,22 +1410,22 @@ CLI menjadi interface pengguna untuk compiler.
 Struktur:
 
 cli/
-└── src/
-    ├── main.rs
-    ├── command/
-    │   ├── mod.rs
-    │   ├── build.rs
-    │   ├── dev.rs
-    │   ├── run.rs
-    │   ├── check.rs
-    │   └── format.rs
-    │
-    ├── config/
-    │   └── mod.rs
-    │
-    └── output/
-        ├── mod.rs
-        └── diagnostics.rs
+â””â”€â”€ src/
+    â”œâ”€â”€ main.rs
+    â”œâ”€â”€ command/
+    â”‚   â”œâ”€â”€ mod.rs
+    â”‚   â”œâ”€â”€ build.rs
+    â”‚   â”œâ”€â”€ dev.rs
+    â”‚   â”œâ”€â”€ run.rs
+    â”‚   â”œâ”€â”€ check.rs
+    â”‚   â””â”€â”€ format.rs
+    â”‚
+    â”œâ”€â”€ config/
+    â”‚   â””â”€â”€ mod.rs
+    â”‚
+    â””â”€â”€ output/
+        â”œâ”€â”€ mod.rs
+        â””â”€â”€ diagnostics.rs
 
 Contoh command:
 
@@ -1441,20 +1444,20 @@ Testing tidak boleh hanya mengandalkan satu jenis test.
 Struktur:
 
 tests/
-├── lexer/
-├── parser/
-├── semantic/
-├── ir/
-├── codegen/
-├── element/
-├── state/
-├── event/
-├── component/
-├── style/
-├── layout/
-├── reactive/
-├── browser/
-└── integration/
+â”œâ”€â”€ lexer/
+â”œâ”€â”€ parser/
+â”œâ”€â”€ semantic/
+â”œâ”€â”€ ir/
+â”œâ”€â”€ codegen/
+â”œâ”€â”€ element/
+â”œâ”€â”€ state/
+â”œâ”€â”€ event/
+â”œâ”€â”€ component/
+â”œâ”€â”€ style/
+â”œâ”€â”€ layout/
+â”œâ”€â”€ reactive/
+â”œâ”€â”€ browser/
+â””â”€â”€ integration/
 
 ---
 
@@ -1544,19 +1547,19 @@ doubleCount = 4
 Test event harus memastikan:
 
 event
- ↓
+ â†“
 handler
- ↓
+ â†“
 state mutation
- ↓
+ â†“
 reactive update
 
 Contoh:
 
 click
- ↓
+ â†“
 count += 1
- ↓
+ â†“
 Text update
 
 ---
@@ -1568,11 +1571,11 @@ Setiap primitive element yang kompleks dapat memiliki test sendiri.
 Contoh:
 
 tests/element/button/
-├── creation.rs
-├── state.rs
-├── event.rs
-├── style.rs
-└── interaction.rs
+â”œâ”€â”€ creation.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ style.rs
+â””â”€â”€ interaction.rs
 
 Untuk element sederhana dapat digabung secukupnya.
 
@@ -1583,15 +1586,15 @@ Untuk element sederhana dapat digabung secukupnya.
 Integration test menguji pipeline penuh.
 
 Source
-  ↓
+  â†“
 Compiler
-  ↓
+  â†“
 Generated Output
-  ↓
+  â†“
 Runtime
-  ↓
+  â†“
 Browser
-  ↓
+  â†“
 Expected Behavior
 
 Contoh:
@@ -1614,17 +1617,17 @@ E2E harus menguji aplikasi sebenarnya.
 Minimal:
 
 source
- ↓
+ â†“
 compile
- ↓
+ â†“
 build
- ↓
+ â†“
 serve
- ↓
+ â†“
 execute
- ↓
+ â†“
 interaction
- ↓
+ â†“
 verify output
 
 Jangan menganggap:
@@ -1640,25 +1643,25 @@ saja sudah cukup untuk memastikan compiler dan runtime bekerja.
 Program contoh untuk testing disimpan pada:
 
 fixtures/
-├── valid/
-└── invalid/
+â”œâ”€â”€ valid/
+â””â”€â”€ invalid/
 
 Contoh:
 
 fixtures/
-├── valid/
-│   ├── basic_app/
-│   ├── counter/
-│   ├── state/
-│   ├── event/
-│   ├── component/
-│   └── layout/
-│
-└── invalid/
-    ├── unknown_element/
-    ├── unknown_event/
-    ├── invalid_state/
-    └── type_error/
+â”œâ”€â”€ valid/
+â”‚   â”œâ”€â”€ basic_app/
+â”‚   â”œâ”€â”€ counter/
+â”‚   â”œâ”€â”€ state/
+â”‚   â”œâ”€â”€ event/
+â”‚   â”œâ”€â”€ component/
+â”‚   â””â”€â”€ layout/
+â”‚
+â””â”€â”€ invalid/
+    â”œâ”€â”€ unknown_element/
+    â”œâ”€â”€ unknown_event/
+    â”œâ”€â”€ invalid_state/
+    â””â”€â”€ type_error/
 
 ---
 
@@ -1667,13 +1670,13 @@ fixtures/
 Examples adalah program yang dapat dibaca developer.
 
 examples/
-├── counter/
-├── todo/
-├── form/
-├── dashboard/
-├── data_table/
-├── editor/
-└── application/
+â”œâ”€â”€ counter/
+â”œâ”€â”€ todo/
+â”œâ”€â”€ form/
+â”œâ”€â”€ dashboard/
+â”œâ”€â”€ data_table/
+â”œâ”€â”€ editor/
+â””â”€â”€ application/
 
 Examples bukan pengganti integration test.
 
@@ -1684,20 +1687,20 @@ Examples bukan pengganti integration test.
 Dokumentasi dipisahkan berdasarkan domain.
 
 docs/
-├── prd.md
-├── struktur.md
-├── syntax.md
-├── architecture.md
-├── compiler.md
-├── runtime.md
-├── element.md
-├── component.md
-├── state.md
-├── event.md
-├── style.md
-├── layout.md
-├── reactive.md
-└── browser.md
+â”œâ”€â”€ prd.md
+â”œâ”€â”€ struktur.md
+â”œâ”€â”€ syntax.md
+â”œâ”€â”€ architecture.md
+â”œâ”€â”€ compiler.md
+â”œâ”€â”€ runtime.md
+â”œâ”€â”€ element.md
+â”œâ”€â”€ component.md
+â”œâ”€â”€ state.md
+â”œâ”€â”€ event.md
+â”œâ”€â”€ style.md
+â”œâ”€â”€ layout.md
+â”œâ”€â”€ reactive.md
+â””â”€â”€ browser.md
 
 Pembagian:
 
@@ -1726,33 +1729,33 @@ Dependency antar-module harus memiliki arah yang jelas.
 Contoh:
 
 Compiler
-   ↓
+   â†“
 AST
-   ↓
+   â†“
 Semantic
-   ↓
+   â†“
 IR
-   ↓
+   â†“
 Codegen
 
 Runtime:
 
 Element
-   ↓
+   â†“
 Layout
-   ↓
+   â†“
 Render
 
 State
-   ↓
+   â†“
 Reactive
-   ↓
+   â†“
 Render
 
 Event
-   ↓
+   â†“
 State
-   ↓
+   â†“
 Reactive
 
 Tidak boleh membuat dependency circular tanpa alasan arsitektural yang kuat.
@@ -1781,11 +1784,11 @@ Ini harus dipecah.
 Contoh yang benar:
 
 button/
-├── mod.rs
-├── state.rs
-├── event.rs
-├── style.rs
-└── render.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ style.rs
+â””â”€â”€ render.rs
 
 ---
 
@@ -1836,23 +1839,23 @@ Struktur modular bukan berarti semua hal harus memiliki 20 layer.
 Contoh element sederhana:
 
 text/
-├── mod.rs
-└── render.rs
+â”œâ”€â”€ mod.rs
+â””â”€â”€ render.rs
 
 sudah cukup.
 
 Tidak perlu:
 
 text/
-├── mod.rs
-├── state.rs
-├── state_manager.rs
-├── event.rs
-├── event_manager.rs
-├── renderer.rs
-├── render_pipeline.rs
-├── abstraction.rs
-└── factory.rs
+â”œâ”€â”€ mod.rs
+â”œâ”€â”€ state.rs
+â”œâ”€â”€ state_manager.rs
+â”œâ”€â”€ event.rs
+â”œâ”€â”€ event_manager.rs
+â”œâ”€â”€ renderer.rs
+â”œâ”€â”€ render_pipeline.rs
+â”œâ”€â”€ abstraction.rs
+â””â”€â”€ factory.rs
 
 jika element tersebut tidak membutuhkan semuanya.
 
@@ -1961,23 +1964,23 @@ Tidak boleh hanya mengubah parser.
 Alur:
 
 Syntax change
-      ↓
+      â†“
 Lexer
-      ↓
+      â†“
 Parser
-      ↓
+      â†“
 AST
-      ↓
+      â†“
 Semantic
-      ↓
+      â†“
 IR
-      ↓
+      â†“
 Codegen
-      ↓
+      â†“
 Runtime
-      ↓
+      â†“
 Tests
-      ↓
+      â†“
 Documentation
 
 ---
@@ -1989,11 +1992,11 @@ IR merupakan kontrak internal compiler.
 Jika IR berubah:
 
 IR
- ↓
+ â†“
 Verifier update
- ↓
+ â†“
 Codegen update
- ↓
+ â†“
 Regression test
 
 Verifier harus selalu mencerminkan aturan IR terbaru.
@@ -2007,13 +2010,13 @@ Setiap bug compiler harus memiliki regression test.
 Alur:
 
 Bug ditemukan
-     ↓
+     â†“
 Buat test yang gagal
-     ↓
+     â†“
 Perbaiki compiler
-     ↓
+     â†“
 Test berhasil
-     ↓
+     â†“
 Test tetap dipertahankan
 
 Jangan hanya memperbaiki source code tanpa test.
@@ -2025,23 +2028,23 @@ Jangan hanya memperbaiki source code tanpa test.
 Runtime harus diuji pada level:
 
 Unit
- ↓
+ â†“
 Subsystem
- ↓
+ â†“
 Integration
- ↓
+ â†“
 End-to-End
 
 Contoh:
 
 Button
- ↓
+ â†“
 click
- ↓
+ â†“
 state change
- ↓
+ â†“
 reactive update
- ↓
+ â†“
 render
 
 harus dapat diuji sebagai satu alur.
@@ -2053,200 +2056,200 @@ harus dapat diuji sebagai satu alur.
 Struktur repository secara keseluruhan:
 
 project/
-│
-├── Cargo.toml
-├── Cargo.lock
-├── README.md
-├── LICENSE
-│
-├── docs/
-│   ├── prd.md
-│   ├── struktur.md
-│   ├── syntax.md
-│   ├── architecture.md
-│   ├── compiler.md
-│   ├── runtime.md
-│   ├── element.md
-│   ├── component.md
-│   ├── state.md
-│   ├── event.md
-│   ├── style.md
-│   ├── layout.md
-│   ├── reactive.md
-│   └── browser.md
-│
-├── compiler/
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs
-│       ├── lexer/
-│       ├── parser/
-│       ├── ast/
-│       ├── semantic/
-│       ├── ir/
-│       ├── codegen/
-│       └── diagnostics/
-│
-├── runtime/
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs
-│       ├── element/
-│       │   ├── registry.rs
-│       │   ├── button/
-│       │   ├── input/
-│       │   ├── text/
-│       │   ├── image/
-│       │   ├── container/
-│       │   ├── row/
-│       │   ├── column/
-│       │   ├── stack/
-│       │   ├── grid/
-│       │   ├── list/
-│       │   ├── table/
-│       │   ├── dialog/
-│       │   ├── popover/
-│       │   ├── tooltip/
-│       │   ├── tabs/
-│       │   ├── sidebar/
-│       │   ├── toolbar/
-│       │   ├── canvas/
-│       │   ├── editor/
-│       │   └── code_editor/
-│       │
-│       ├── component/
-│       │   ├── instance.rs
-│       │   ├── tree.rs
-│       │   ├── lifecycle.rs
-│       │   ├── input.rs
-│       │   ├── output.rs
-│       │   ├── context.rs
-│       │   └── registry.rs
-│       │
-│       ├── state/
-│       │   ├── local/
-│       │   ├── shared/
-│       │   ├── global/
-│       │   ├── derived/
-│       │   ├── persistent/
-│       │   ├── dependency/
-│       │   ├── transaction/
-│       │   └── scheduler/
-│       │
-│       ├── event/
-│       │   ├── pointer/
-│       │   ├── keyboard/
-│       │   ├── input/
-│       │   ├── focus/
-│       │   ├── form/
-│       │   ├── drag/
-│       │   ├── clipboard/
-│       │   ├── media/
-│       │   ├── lifecycle/
-│       │   ├── animation/
-│       │   ├── application/
-│       │   └── custom/
-│       │
-│       ├── style/
-│       │   ├── property/
-│       │   ├── state/
-│       │   ├── theme/
-│       │   ├── responsive/
-│       │   └── resolver.rs
-│       │
-│       ├── layout/
-│       │   ├── node.rs
-│       │   ├── constraints.rs
-│       │   ├── measurement.rs
-│       │   ├── alignment.rs
-│       │   ├── sizing.rs
-│       │   ├── spacing.rs
-│       │   ├── overflow.rs
-│       │   ├── responsive.rs
-│       │   ├── scroll.rs
-│       │   ├── resize.rs
-│       │   └── engine.rs
-│       │
-│       ├── reactive/
-│       │   ├── signal.rs
-│       │   ├── dependency.rs
-│       │   ├── effect.rs
-│       │   ├── watcher.rs
-│       │   ├── scheduler.rs
-│       │   ├── batch.rs
-│       │   ├── update.rs
-│       │   └── invalidation.rs
-│       │
-│       ├── animation/
-│       │   ├── animation.rs
-│       │   ├── transition.rs
-│       │   ├── timeline.rs
-│       │   └── keyframe.rs
-│       │
-│       ├── render/
-│       │   ├── tree.rs
-│       │   ├── node.rs
-│       │   ├── renderer.rs
-│       │   ├── mount.rs
-│       │   ├── patch.rs
-│       │   └── diff.rs
-│       │
-│       ├── browser/
-│       │   ├── fetch/
-│       │   ├── websocket/
-│       │   ├── storage/
-│       │   ├── clipboard/
-│       │   ├── file/
-│       │   ├── url/
-│       │   ├── history/
-│       │   ├── media/
-│       │   ├── canvas/
-│       │   ├── worker/
-│       │   └── notification/
-│       │
-│       ├── scheduler/
-│       └── error/
-│
-├── standard/
-│   ├── Cargo.toml
-│   └── src/
-│
-├── cli/
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs
-│       ├── command/
-│       ├── config/
-│       └── output/
-│
-├── tests/
-│   ├── lexer/
-│   ├── parser/
-│   ├── semantic/
-│   ├── ir/
-│   ├── codegen/
-│   ├── element/
-│   ├── state/
-│   ├── event/
-│   ├── component/
-│   ├── style/
-│   ├── layout/
-│   ├── reactive/
-│   ├── browser/
-│   └── integration/
-│
-├── fixtures/
-│   ├── valid/
-│   └── invalid/
-│
-└── examples/
-    ├── counter/
-    ├── todo/
-    ├── form/
-    ├── dashboard/
-    ├── data_table/
-    ├── editor/
-    └── application/
+â”‚
+â”œâ”€â”€ Cargo.toml
+â”œâ”€â”€ Cargo.lock
+â”œâ”€â”€ README.md
+â”œâ”€â”€ LICENSE
+â”‚
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ prd.md
+â”‚   â”œâ”€â”€ struktur.md
+â”‚   â”œâ”€â”€ syntax.md
+â”‚   â”œâ”€â”€ architecture.md
+â”‚   â”œâ”€â”€ compiler.md
+â”‚   â”œâ”€â”€ runtime.md
+â”‚   â”œâ”€â”€ element.md
+â”‚   â”œâ”€â”€ component.md
+â”‚   â”œâ”€â”€ state.md
+â”‚   â”œâ”€â”€ event.md
+â”‚   â”œâ”€â”€ style.md
+â”‚   â”œâ”€â”€ layout.md
+â”‚   â”œâ”€â”€ reactive.md
+â”‚   â””â”€â”€ browser.md
+â”‚
+â”œâ”€â”€ compiler/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ lib.rs
+â”‚       â”œâ”€â”€ lexer/
+â”‚       â”œâ”€â”€ parser/
+â”‚       â”œâ”€â”€ ast/
+â”‚       â”œâ”€â”€ semantic/
+â”‚       â”œâ”€â”€ ir/
+â”‚       â”œâ”€â”€ codegen/
+â”‚       â””â”€â”€ diagnostics/
+â”‚
+â”œâ”€â”€ runtime/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ lib.rs
+â”‚       â”œâ”€â”€ element/
+â”‚       â”‚   â”œâ”€â”€ registry.rs
+â”‚       â”‚   â”œâ”€â”€ button/
+â”‚       â”‚   â”œâ”€â”€ input/
+â”‚       â”‚   â”œâ”€â”€ text/
+â”‚       â”‚   â”œâ”€â”€ image/
+â”‚       â”‚   â”œâ”€â”€ container/
+â”‚       â”‚   â”œâ”€â”€ row/
+â”‚       â”‚   â”œâ”€â”€ column/
+â”‚       â”‚   â”œâ”€â”€ stack/
+â”‚       â”‚   â”œâ”€â”€ grid/
+â”‚       â”‚   â”œâ”€â”€ list/
+â”‚       â”‚   â”œâ”€â”€ table/
+â”‚       â”‚   â”œâ”€â”€ dialog/
+â”‚       â”‚   â”œâ”€â”€ popover/
+â”‚       â”‚   â”œâ”€â”€ tooltip/
+â”‚       â”‚   â”œâ”€â”€ tabs/
+â”‚       â”‚   â”œâ”€â”€ sidebar/
+â”‚       â”‚   â”œâ”€â”€ toolbar/
+â”‚       â”‚   â”œâ”€â”€ canvas/
+â”‚       â”‚   â”œâ”€â”€ editor/
+â”‚       â”‚   â””â”€â”€ code_editor/
+â”‚       â”‚
+â”‚       â”œâ”€â”€ component/
+â”‚       â”‚   â”œâ”€â”€ instance.rs
+â”‚       â”‚   â”œâ”€â”€ tree.rs
+â”‚       â”‚   â”œâ”€â”€ lifecycle.rs
+â”‚       â”‚   â”œâ”€â”€ input.rs
+â”‚       â”‚   â”œâ”€â”€ output.rs
+â”‚       â”‚   â”œâ”€â”€ context.rs
+â”‚       â”‚   â””â”€â”€ registry.rs
+â”‚       â”‚
+â”‚       â”œâ”€â”€ state/
+â”‚       â”‚   â”œâ”€â”€ local/
+â”‚       â”‚   â”œâ”€â”€ shared/
+â”‚       â”‚   â”œâ”€â”€ global/
+â”‚       â”‚   â”œâ”€â”€ derived/
+â”‚       â”‚   â”œâ”€â”€ persistent/
+â”‚       â”‚   â”œâ”€â”€ dependency/
+â”‚       â”‚   â”œâ”€â”€ transaction/
+â”‚       â”‚   â””â”€â”€ scheduler/
+â”‚       â”‚
+â”‚       â”œâ”€â”€ event/
+â”‚       â”‚   â”œâ”€â”€ pointer/
+â”‚       â”‚   â”œâ”€â”€ keyboard/
+â”‚       â”‚   â”œâ”€â”€ input/
+â”‚       â”‚   â”œâ”€â”€ focus/
+â”‚       â”‚   â”œâ”€â”€ form/
+â”‚       â”‚   â”œâ”€â”€ drag/
+â”‚       â”‚   â”œâ”€â”€ clipboard/
+â”‚       â”‚   â”œâ”€â”€ media/
+â”‚       â”‚   â”œâ”€â”€ lifecycle/
+â”‚       â”‚   â”œâ”€â”€ animation/
+â”‚       â”‚   â”œâ”€â”€ application/
+â”‚       â”‚   â””â”€â”€ custom/
+â”‚       â”‚
+â”‚       â”œâ”€â”€ style/
+â”‚       â”‚   â”œâ”€â”€ property/
+â”‚       â”‚   â”œâ”€â”€ state/
+â”‚       â”‚   â”œâ”€â”€ theme/
+â”‚       â”‚   â”œâ”€â”€ responsive/
+â”‚       â”‚   â””â”€â”€ resolver.rs
+â”‚       â”‚
+â”‚       â”œâ”€â”€ layout/
+â”‚       â”‚   â”œâ”€â”€ node.rs
+â”‚       â”‚   â”œâ”€â”€ constraints.rs
+â”‚       â”‚   â”œâ”€â”€ measurement.rs
+â”‚       â”‚   â”œâ”€â”€ alignment.rs
+â”‚       â”‚   â”œâ”€â”€ sizing.rs
+â”‚       â”‚   â”œâ”€â”€ spacing.rs
+â”‚       â”‚   â”œâ”€â”€ overflow.rs
+â”‚       â”‚   â”œâ”€â”€ responsive.rs
+â”‚       â”‚   â”œâ”€â”€ scroll.rs
+â”‚       â”‚   â”œâ”€â”€ resize.rs
+â”‚       â”‚   â””â”€â”€ engine.rs
+â”‚       â”‚
+â”‚       â”œâ”€â”€ reactive/
+â”‚       â”‚   â”œâ”€â”€ signal.rs
+â”‚       â”‚   â”œâ”€â”€ dependency.rs
+â”‚       â”‚   â”œâ”€â”€ effect.rs
+â”‚       â”‚   â”œâ”€â”€ watcher.rs
+â”‚       â”‚   â”œâ”€â”€ scheduler.rs
+â”‚       â”‚   â”œâ”€â”€ batch.rs
+â”‚       â”‚   â”œâ”€â”€ update.rs
+â”‚       â”‚   â””â”€â”€ invalidation.rs
+â”‚       â”‚
+â”‚       â”œâ”€â”€ animation/
+â”‚       â”‚   â”œâ”€â”€ animation.rs
+â”‚       â”‚   â”œâ”€â”€ transition.rs
+â”‚       â”‚   â”œâ”€â”€ timeline.rs
+â”‚       â”‚   â””â”€â”€ keyframe.rs
+â”‚       â”‚
+â”‚       â”œâ”€â”€ render/
+â”‚       â”‚   â”œâ”€â”€ tree.rs
+â”‚       â”‚   â”œâ”€â”€ node.rs
+â”‚       â”‚   â”œâ”€â”€ renderer.rs
+â”‚       â”‚   â”œâ”€â”€ mount.rs
+â”‚       â”‚   â”œâ”€â”€ patch.rs
+â”‚       â”‚   â””â”€â”€ diff.rs
+â”‚       â”‚
+â”‚       â”œâ”€â”€ browser/
+â”‚       â”‚   â”œâ”€â”€ fetch/
+â”‚       â”‚   â”œâ”€â”€ websocket/
+â”‚       â”‚   â”œâ”€â”€ storage/
+â”‚       â”‚   â”œâ”€â”€ clipboard/
+â”‚       â”‚   â”œâ”€â”€ file/
+â”‚       â”‚   â”œâ”€â”€ url/
+â”‚       â”‚   â”œâ”€â”€ history/
+â”‚       â”‚   â”œâ”€â”€ media/
+â”‚       â”‚   â”œâ”€â”€ canvas/
+â”‚       â”‚   â”œâ”€â”€ worker/
+â”‚       â”‚   â””â”€â”€ notification/
+â”‚       â”‚
+â”‚       â”œâ”€â”€ scheduler/
+â”‚       â””â”€â”€ error/
+â”‚
+â”œâ”€â”€ standard/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚
+â”œâ”€â”€ cli/
+â”‚   â”œâ”€â”€ Cargo.toml
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ main.rs
+â”‚       â”œâ”€â”€ command/
+â”‚       â”œâ”€â”€ config/
+â”‚       â””â”€â”€ output/
+â”‚
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ lexer/
+â”‚   â”œâ”€â”€ parser/
+â”‚   â”œâ”€â”€ semantic/
+â”‚   â”œâ”€â”€ ir/
+â”‚   â”œâ”€â”€ codegen/
+â”‚   â”œâ”€â”€ element/
+â”‚   â”œâ”€â”€ state/
+â”‚   â”œâ”€â”€ event/
+â”‚   â”œâ”€â”€ component/
+â”‚   â”œâ”€â”€ style/
+â”‚   â”œâ”€â”€ layout/
+â”‚   â”œâ”€â”€ reactive/
+â”‚   â”œâ”€â”€ browser/
+â”‚   â””â”€â”€ integration/
+â”‚
+â”œâ”€â”€ fixtures/
+â”‚   â”œâ”€â”€ valid/
+â”‚   â””â”€â”€ invalid/
+â”‚
+â””â”€â”€ examples/
+    â”œâ”€â”€ counter/
+    â”œâ”€â”€ todo/
+    â”œâ”€â”€ form/
+    â”œâ”€â”€ dashboard/
+    â”œâ”€â”€ data_table/
+    â”œâ”€â”€ editor/
+    â””â”€â”€ application/
 
 ---
 
@@ -2255,39 +2258,39 @@ project/
 Arsitektur secara konseptual:
 
                          SOURCE
-                           │
-                           ▼
+                           â”‚
+                           â–¼
                         COMPILER
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
+                           â”‚
+             â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+             â”‚                           â”‚
            Parser                    Semantic
-             │                           │
-             ▼                           ▼
+             â”‚                           â”‚
+             â–¼                           â–¼
             AST                           IR
-                                         │
-                                         ▼
+                                         â”‚
+                                         â–¼
                                        Codegen
-                                         │
-                                         ▼
+                                         â”‚
+                                         â–¼
                                       RUNTIME
-                                         │
-       ┌──────────────┬──────────────┬───┴──────────────┐
-       │              │              │                  │
-       ▼              ▼              ▼                  ▼
+                                         â”‚
+       â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+       â”‚              â”‚              â”‚                  â”‚
+       â–¼              â–¼              â–¼                  â–¼
     Element         State          Event              Style
-       │              │              │                  │
-       └──────────────┴──────┬───────┴──────────────────┘
-                             ▼
+       â”‚              â”‚              â”‚                  â”‚
+       â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                             â–¼
                          Reactive
-                             │
-                             ▼
+                             â”‚
+                             â–¼
                            Layout
-                             │
-                             ▼
+                             â”‚
+                             â–¼
                            Render
-                             │
-                             ▼
+                             â”‚
+                             â–¼
                           Browser
 
 ---
@@ -2393,19 +2396,19 @@ Tanpa membuat source code compiler maupun runtime berubah menjadi satu kumpulan 
 Fondasi arsitekturnya adalah:
 
 Language
-   ↓
+   â†“
 Component
-   ↓
+   â†“
 Element
-   ↓
+   â†“
 State + Event
-   ↓
+   â†“
 Reactive System
-   ↓
+   â†“
 Layout + Style
-   ↓
+   â†“
 Render
-   ↓
+   â†“
 Browser
 
 Dengan struktur Rust yang mengikuti domain tersebut, setiap bagian dapat dikembangkan, diuji, dan dipelihara secara independen tanpa kehilangan hubungan antar-subsystem.

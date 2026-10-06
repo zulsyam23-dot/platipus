@@ -1,0 +1,17 @@
+[package]
+name = "platipus-semantic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Semantic analysis for the Platipus language"
+
+[lib]
+name = "platipus_semantic"
+path = "src/lib.rs"
+
+[dependencies]
+platipus-diagnostics = { workspace = true }
+platipus-language = { workspace = true }
+platipus-testing = { workspace = true }

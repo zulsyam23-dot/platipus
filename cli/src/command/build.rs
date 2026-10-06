@@ -24,10 +24,19 @@ pub struct Built {
 /// turning a diagnostic bag into a rendered report.
 ///
 /// `check` and `build` both need this, and so does `dev` on every rebuild.
-pub fn compile_entry(entry: &Path) -> Result<Built, CliError> {
+pub fn compile_entry(entry: &Path, rust_mode: crate::command::RustMode) -> Result<Built, CliError> {
     let source = read_entry(entry)?;
     let label = path_label(entry);
-    match pipeline::build_entry(&label, &source, &FsLoader, &Web) {
+    let workdir = entry
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let rust = pipeline::RustBuild {
+        workdir,
+        mode: rust_mode.into(),
+        rust_dependencies: Vec::new(),
+    };
+    match pipeline::build_entry_rust(&label, &source, &FsLoader, &Web, Some(&rust)) {
         Ok(loaded) => Ok(Built {
             compilation: loaded.compilation,
             file: loaded.file,
@@ -51,7 +60,7 @@ pub fn compile_entry(entry: &Path) -> Result<Built, CliError> {
 }
 
 pub fn run(options: &Options) -> Result<ExitCode, CliError> {
-    let built = compile_entry(&options.entry)?;
+    let built = compile_entry(&options.entry, crate::command::RustMode::Build)?;
     let written = write_artifacts(&options.out_dir, &built.compilation.artifacts)?;
     report(&built.file, &built.compilation.warnings);
     if !options.quiet {

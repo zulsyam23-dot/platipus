@@ -46,17 +46,42 @@ One construct per concept. No `<div>`, no `@click`, no `setState()`, no `render(
 
 ## Workspace layout
 
-| Crate                    | Responsibility                                                        |
+| Crate | Responsibility |
 | ------------------------ | --------------------------------------------------------------------- |
-| `platipus-compiler`      | Lexer → Parser → AST → Semantic → IR (verified) → Codegen → Web output |
-| `platipus-runtime`       | Host side of the state, derived-value, and event contracts             |
-| `platipus-standard`      | Optional standard-library helpers                                      |
-| `platipus-cli`           | `platipus` / `plt` — new, dev, build, run, check, format, test          |
+| `platipus-diagnostics`   | Spans, errors, warnings, diagnostic bag — the shared reporting contract |
+| `platipus-language`      | Lexer, parser, AST, event vocabulary, element registry, `#[rust]` extraction |
+| `platipus-semantic`      | Semantic analysis: scopes, types, validation |
+| `platipus-ir`            | Lowered, verifiable module IR + the backend contract (`Target`, `RustBridge`) |
+| `platipus-reactive`      | Reactive state, derived values, event bus (host side of the runtime contract) |
+| `platipus-storage`       | Storage contract (`Storage`, `MemoryStorage`) |
+| `platipus-testing`       | Embedded test model (`Test`, `Step`, `TEST_ACTIONS`) |
+| `platipus-web`           | Web backend: HTML/CSS/JavaScript/DOM generation |
+| `platipus-compiler`      | Orchestrator: loader, pipeline, `#[rust]` compilation stage |
+| `platipus-runtime`       | Facade re-exporting `platipus-reactive` |
+| `platipus-standard`      | Optional standard-library helpers |
+| `platipus-cli`           | `platipus` / `plt` — new, dev, build, run, check, format, test |
+| `platipus-p2lt`          | Package manager |
+
+The dependency graph is strictly one-way and consumer-blind:
+
+```text
+diagnostics ───┬── language ─── semantic ───┐
+               │       │                     │
+               │       └────── ir ────────── web (backend)
+               ├── reactive                   ▲
+               ├── storage                    │
+               └── testing ───────────────────┘
+                                                 │
+                                  compiler (orchestrator) ── cli / p2lt
+```
+
+Domain libraries never import the compiler, a backend, or an application.
+See [`docs/architecture.md`](docs/architecture.md) for the full contract.
 
 The runtime never depends on the standard library for core UI concepts, and the
 compiler never depends on the UI runtime in order to parse.
 
-`platipus-runtime` is the Rust side of the reactive contract: a state store, a
+`platipus-reactive` is the Rust side of the reactive contract: a state store, a
 derived-value set, and an event bus. It is not a second renderer — the code a
 browser actually executes is emitted into the generated JavaScript, and the two
 implement the same contract. See [`docs/roadmap.md`](docs/roadmap.md) §4.2 for
@@ -131,3 +156,66 @@ list.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Native Rust blocks
+
+A Platipus file may embed a trusted Rust block; the compiler extracts it,
+generates a small Cargo crate, and compiles it with the Rust toolchain that is
+already on your `PATH`.
+
+```plt
+#[rust]
+#[export]
+fn add(a: i64, b: i64) -> i64 {
+    a + b
+}
+
+app Main {
+    Column {
+        Text add(10, 20)
+    }
+}
+```
+
+Only functions marked `#[export]` (or the whole block when the block itself is
+attributed `#[rust] #[export]`) become callable from Platipus. Exported
+signatures use the supported scalar types - `i64, i32, i16, i8, u64, u32, u16,
+u8, f64, f32, bool`. Anything else is a compile error, never a crash:
+`Rust function 'foo' uses unsupported type 'HashMap<K,V>'`.
+
+For the web target the crate is built for `wasm32-unknown-unknown`, the wasm
+module is embedded in `app.js` as base64, and the generated bridge exposes each
+export as `__pltRust.<name>` with automatic `BigInt`/number conversion; `i64`/
+`u64` returns arrive as JS numbers. Cargo diagnostics are mapped back to the
+`.plt` source location, so you never edit a temporary file. See
+`examples/rust/`.
+
+## P2LT package manager
+
+`p2lt` is the package manager for Platipus packages, analogous to npm/cargo/go
+mod within this ecosystem.
+
+```bash
+p2lt init                 # p2lt.toml, src/main.plt, .gitignore, tests/
+p2lt install math         # copy from the registry into .p2lt/packages,
+                          # update p2lt.toml and p2lt.lock (FNV-1a checksums)
+p2lt list                 # installed dependencies
+p2lt update               # refresh from the registry + rewrite p2lt.lock
+p2lt remove math          # delete package + manifest/lockfile entries
+p2lt search math          # search the registry
+p2lt publish              # copy this package into the local registry
+p2lt build                # resolve, compile Platipus, extract + build Rust,
+                          # write dist/
+p2lt run                  # build, then serve hint
+p2lt clean                # remove target/ and dist/
+```
+
+The registry is a plain directory (`$P2LT_REGISTRY`, or
+`<project>/.p2lt/registry`) of package folders, so the whole loop is local and
+deterministic. Cargo builds Rust crates; P2LT manages Platipus packages.
+Installing a package may execute native code, so packages are always compiled,
+never eval'd - build scripts inside dependencies are never executed.
+
+| Crate                  | Responsibility                                              |
+| ---------------------- | ----------------------------------------------------------- |
+| `platipus-p2lt`        | Manifest parsing, lockfile, local registry, resolver + CLI  |

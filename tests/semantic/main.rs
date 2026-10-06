@@ -94,7 +94,7 @@ app Main {
 
 #[test]
 fn accepts_every_known_event() {
-    for event in platipus_compiler::semantic::events::ALL {
+    for event in platipus_compiler::ast::known::ALL {
         let source = format!(
             r##"
 app Main {{

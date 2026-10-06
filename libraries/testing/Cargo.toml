@@ -1,0 +1,15 @@
+[package]
+name = "platipus-testing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Embedded test contract for Platipus: test actions, steps, and model"
+
+[lib]
+name = "platipus_testing"
+path = "src/lib.rs"
+
+[dependencies]
+platipus-diagnostics = { workspace = true }

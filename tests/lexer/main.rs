@@ -230,3 +230,39 @@ fn handles_empty_and_whitespace_only_input() {
         assert_eq!(tokens[0].kind, TokenKind::Eof);
     }
 }
+
+#[test]
+fn scans_a_rust_block_as_one_token() {
+    let source = "#[rust]\nfn add(a: i64, b: i64) -> i64 {\n    a + b\n}\n";
+    let tokens = assert_scans(source);
+    assert_eq!(tokens[0].kind, TokenKind::RustBlock);
+    assert!(tokens[0].lexeme.contains("fn add"));
+}
+
+#[test]
+fn rust_block_braces_inside_strings_do_not_terminate() {
+    let source = "#[rust]\nfn f() {\n    println!(\"}\");\n}\n";
+    let tokens = assert_scans(source);
+    assert_eq!(tokens[0].kind, TokenKind::RustBlock);
+    assert!(tokens[0].lexeme.contains("println!"));
+}
+
+#[test]
+fn rust_block_raw_strings_and_comments_are_safe() {
+    let source = "#[rust]\nfn f() {\n    let x = r#\"}\"#;\n    // }\n    /* } */\n}\n";
+    let tokens = assert_scans(source);
+    assert_eq!(tokens[0].kind, TokenKind::RustBlock);
+    assert!(tokens[0].lexeme.contains("r#\"}\"#"));
+}
+
+#[test]
+fn unterminated_rust_block_is_an_error() {
+    let (_, errors) = tokenize_lossy("#[rust]\nfn f( {\n");
+    assert!(!errors.is_empty());
+}
+
+#[test]
+fn unknown_attributes_are_rejected() {
+    let (_, errors) = tokenize_lossy("#[foo]\nfn f() {}\n");
+    assert!(errors.iter().any(|error| error.code == "unknown-attribute"));
+}

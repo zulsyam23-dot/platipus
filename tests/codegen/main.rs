@@ -24,7 +24,7 @@ fn lower(source: &str) -> IrModule {
 fn javascript(source: &str) -> String {
     let module = lower(source);
     platipus_compiler::codegen::Web
-        .generate(&module)
+        .generate(&module, None)
         .expect("codegen failed")
         .into_iter()
         .find(|artifact| artifact.name == "app.js")
@@ -35,7 +35,7 @@ fn javascript(source: &str) -> String {
 fn stylesheet(source: &str) -> String {
     let module = lower(source);
     platipus_compiler::codegen::Web
-        .generate(&module)
+        .generate(&module, None)
         .expect("codegen failed")
         .into_iter()
         .find(|artifact| artifact.name == "app.css")
@@ -46,7 +46,7 @@ fn stylesheet(source: &str) -> String {
 fn html(source: &str) -> String {
     let module = lower(source);
     platipus_compiler::codegen::Web
-        .generate(&module)
+        .generate(&module, None)
         .expect("codegen failed")
         .into_iter()
         .find(|artifact| artifact.name == "index.html")
@@ -57,7 +57,7 @@ fn html(source: &str) -> String {
 fn artifacts(source: &str) -> Vec<&'static str> {
     let module = lower(source);
     platipus_compiler::codegen::Web
-        .generate(&module)
+        .generate(&module, None)
         .expect("codegen failed")
         .into_iter()
         .map(|artifact| artifact.name)
@@ -1121,10 +1121,10 @@ app Main {
 fn codegen_is_deterministic() {
     let source = "app Main { state count = 0 Button \"x\" { on click { count += 1 } } }";
     let first = platipus_compiler::codegen::Web
-        .generate(&lower(source))
+        .generate(&lower(source), None)
         .unwrap();
     let second = platipus_compiler::codegen::Web
-        .generate(&lower(source))
+        .generate(&lower(source), None)
         .unwrap();
     assert_eq!(first, second);
 }
@@ -1132,7 +1132,7 @@ fn codegen_is_deterministic() {
 #[test]
 fn the_web_module_is_reachable_through_its_own_type() {
     let module = lower("app Main { Text \"hi\" }");
-    let produced = web::generate(&module).unwrap();
+    let produced = web::generate(&module, None).unwrap();
     assert_eq!(produced.len(), 6);
 }
 

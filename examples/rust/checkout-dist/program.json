@@ -1,0 +1,8 @@
+{
+  "name": "CheckoutApp",
+  "components": ["CheckoutApp", "Money"],
+  "apis": [],
+  "tests": [],
+  "routes": [],
+  "entry": "index.html"
+}

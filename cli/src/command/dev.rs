@@ -74,7 +74,7 @@ fn bind(port: u16) -> Result<TcpListener, CliError> {
 }
 
 fn rebuild(options: &Options, watched: &mut Vec<(PathBuf, Option<Stamp>)>) -> Result<(), CliError> {
-    let built = build::compile_entry(&options.entry)?;
+    let built = build::compile_entry(&options.entry, crate::command::RustMode::Build)?;
     let written = write_artifacts(&options.out_dir, &built.compilation.artifacts)?;
     inject_client(&options.out_dir);
     if !options.quiet {

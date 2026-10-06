@@ -1,0 +1,15 @@
+[package]
+name = "platipus-language"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Lexer, parser, AST, and event vocabulary for the Platipus language"
+
+[lib]
+name = "platipus_language"
+path = "src/lib.rs"
+
+[dependencies]
+platipus-diagnostics = { workspace = true }

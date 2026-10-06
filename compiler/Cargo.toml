@@ -12,6 +12,12 @@ name = "platipus_compiler"
 path = "src/lib.rs"
 
 [dependencies]
+platipus-diagnostics = { workspace = true }
+platipus-language = { workspace = true }
+platipus-ir = { workspace = true }
+platipus-semantic = { workspace = true }
+platipus-web = { workspace = true }
+
 
 [[test]]
 name = "lexer"
@@ -36,3 +42,8 @@ path = "../tests/codegen/main.rs"
 [[test]]
 name = "loader"
 path = "../tests/loader/main.rs"
+
+[[test]]
+name = "rust"
+path = "../tests/rust/main.rs"
+

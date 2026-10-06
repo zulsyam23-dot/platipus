@@ -1,0 +1,14 @@
+[package]
+name = "platipus-diagnostics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Diagnostics contract for the Platipus ecosystem"
+
+[lib]
+name = "platipus_diagnostics"
+path = "src/lib.rs"
+
+[dependencies]

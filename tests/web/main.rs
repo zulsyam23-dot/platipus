@@ -66,11 +66,19 @@ fn the_harnesses_run_against_a_fresh_build() {
         let source = std::fs::read_to_string(&fixture)
             .unwrap_or_else(|error| panic!("read {}: {error}", fixture.display()));
         let out = scratch(harness.script);
-        let compilation = pipeline::build_entry(
+        let compilation = pipeline::build_entry_rust(
             &fixture.display().to_string(),
             &source,
             &FsLoader,
             &Web,
+            Some(&pipeline::RustBuild {
+                workdir: fixture
+                    .parent()
+                    .map(std::path::Path::to_path_buf)
+                    .unwrap_or_default(),
+                mode: platipus_compiler::rust::RustMode::Build,
+                rust_dependencies: Vec::new(),
+            }),
         )
         .unwrap_or_else(|failure| panic!("{}: {failure:?}", fixture.display()))
         .compilation;

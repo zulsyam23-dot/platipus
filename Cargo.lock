@@ -12,14 +12,86 @@ dependencies = [
 [[package]]
 name = "platipus-compiler"
 version = "0.1.0"
+dependencies = [
+ "platipus-diagnostics",
+ "platipus-ir",
+ "platipus-language",
+ "platipus-semantic",
+ "platipus-web",
+]
+
+[[package]]
+name = "platipus-diagnostics"
+version = "0.1.0"
+
+[[package]]
+name = "platipus-ir"
+version = "0.1.0"
+dependencies = [
+ "platipus-diagnostics",
+ "platipus-language",
+ "platipus-testing",
+]
+
+[[package]]
+name = "platipus-language"
+version = "0.1.0"
+dependencies = [
+ "platipus-diagnostics",
+]
+
+[[package]]
+name = "platipus-p2lt"
+version = "0.1.0"
+dependencies = [
+ "platipus-compiler",
+]
+
+[[package]]
+name = "platipus-reactive"
+version = "0.1.0"
 
 [[package]]
 name = "platipus-runtime"
 version = "0.1.0"
+dependencies = [
+ "platipus-reactive",
+]
+
+[[package]]
+name = "platipus-semantic"
+version = "0.1.0"
+dependencies = [
+ "platipus-diagnostics",
+ "platipus-language",
+ "platipus-testing",
+]
 
 [[package]]
 name = "platipus-standard"
 version = "0.1.0"
 dependencies = [
  "platipus-runtime",
+]
+
+[[package]]
+name = "platipus-storage"
+version = "0.1.0"
+
+[[package]]
+name = "platipus-testing"
+version = "0.1.0"
+dependencies = [
+ "platipus-diagnostics",
+]
+
+[[package]]
+name = "platipus-web"
+version = "0.1.0"
+dependencies = [
+ "platipus-diagnostics",
+ "platipus-ir",
+ "platipus-language",
+ "platipus-semantic",
+ "platipus-testing",
 ]

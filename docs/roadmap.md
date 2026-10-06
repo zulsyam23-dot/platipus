@@ -1,5 +1,7 @@
 # Status Implementasi dan Roadmap Bahasa Platipus
 
+> **Catatan:** path yang disebut di dokumen ini sudah disesuaikan dengan struktur workspace modular (lihat [docs/architecture.md](architecture.md)). Nomor baris (:NNN) pada catatan lama merujuk ke layout sebelum pemecahan — anggap sebagai referensi historis.
+
 ---
 
 ## 1. Tujuan Dokumen
@@ -53,7 +55,7 @@ perilaku browser nyata:
   library `widgets.plt`/`design.plt`, dan satu modul per area fitur di
   `examples/showcase/sections/`.
 
-Semua `path:line` ke `compiler/src/codegen/web/javascript.rs` dihitung ulang pada
+Semua `path:line` ke `libraries/web/src/codegen/web/javascript.rs` dihitung ulang pada
 revisi ini: file itu tumbuh sekitar 150 baris karena pekerjaan batching, sehingga
 nomor baris dari versi dokumen sebelumnya sudah tidak berlaku. Angka yang berubah
 tercatat di bagian 7.
@@ -82,7 +84,7 @@ lebih berbahaya karena developer mengira fiturnya tersedia, sedangkan yang
 | --- | --- | --- | --- |
 | 0 | Language Specification | **SEBAGIAN** | Syntax, keywords, literals, expressions, dan scope selesai. **Types belum ada**: `TypeRegistry` adalah stub yang tidak pernah dipakai. |
 | 1 | Compiler Core | **SELESAI** | Lexer, Parser, AST, Semantic, dan Codegen berjalan penuh, ditambah lapisan IR yang tidak disebut di PRD. Tidak ada type checking. |
-| 2 | UI Core | **SELESAI** | 62 primitive terdaftar — seluruh 47 primitive PRD plus 15 ekstra — dan ke-62 punya properti, 46 nama properti berbeda. Lihat bagian 4.3. |
+| 2 | UI Core | **SELESAI** | 62 primitive terdaftar â€” seluruh 47 primitive PRD plus 15 ekstra â€” dan ke-62 punya properti, 46 nama properti berbeda. Lihat bagian 4.3. |
 | 3 | Reactive Core | **SELESAI** | 5 jenis state, derived, dependency tracking, dan reactive update berjalan. |
 | 4 | Event Core | **SELESAI** | 28 event DOM terpetakan, custom event, keempat lifecycle event, event object ternormalisasi (`event.value`/`key`/`position`/`data`), dan propagation (`stopPropagation` + delegasi capture) bekerja. Lihat bagian 4.5. |
 | 5 | Layout | **SELESAI** | Semua primitive layout PRD bekerja, `responsive { }` menghasilkan `@media`, dan posisi scroll kini menjadi state reaktif lewat binding `scrollTop`/`scrollLeft` maupun `on scroll` + `event.position`. Lihat bagian 4.6. |
@@ -100,13 +102,13 @@ lebih berbahaya karena developer mengira fiturnya tersedia, sedangkan yang
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
 | syntax | **SEBAGIAN** | Tersebar di `docs/prd.md` bagian 67-68 dan `docs/prd.md:1964-2040`, dengan contoh sintaks di `README.md:28-43`. Dokumen permukaan `docs/syntax.md` belum ada. |
-| grammar | **SEBAGIAN** | Parser adalah recursive descent tulisan tangan di `compiler/src/parser/`. Tidak ada file grammar formal. |
-| keywords | **SELESAI** | `compiler/src/lexer/keyword.rs` |
-| literals | **SELESAI** | `compiler/src/lexer/literal.rs` |
-| expressions | **SELESAI** | `compiler/src/parser/expression.rs` |
-| types | **BELUM** | `compiler/src/semantic/types.rs:21-23`. `TypeRegistry` mendaftarkan 6 primitive lalu membuang nilai primitivenya di `compiler/src/semantic/types.rs:43` (`let _ = primitive;`). Metode `by_name()` di `compiler/src/semantic/types.rs:46-48` tidak pernah dipanggil. `compiler/src/semantic/checker.rs:18` menyimpan field `types`, `compiler/src/semantic/checker.rs:36` mengisinya, dan tidak ada query lain terhadapnya. **Tidak ada type inference maupun type checking.** |
-| scope | **SELESAI** | `compiler/src/semantic/scope.rs` dan `compiler/src/semantic/name_resolver.rs` |
-| AST specification | **SEBAGIAN** | Struktur AST ada di `compiler/src/ast/` (10 file), tetapi spesifikasi formalnya hanya prosa di `docs/prd.md`. |
+| grammar | **SEBAGIAN** | Parser adalah recursive descent tulisan tangan di `libraries/language/src/parser/`. Tidak ada file grammar formal. |
+| keywords | **SELESAI** | `libraries/language/src/lexer/keyword.rs` |
+| literals | **SELESAI** | `libraries/language/src/lexer/literal.rs` |
+| expressions | **SELESAI** | `libraries/language/src/parser/expression.rs` |
+| types | **BELUM** | `libraries/semantic/src/types.rs:21-23`. `TypeRegistry` mendaftarkan 6 primitive lalu membuang nilai primitivenya di `libraries/semantic/src/types.rs:43` (`let _ = primitive;`). Metode `by_name()` di `libraries/semantic/src/types.rs:46-48` tidak pernah dipanggil. `libraries/semantic/src/checker.rs:18` menyimpan field `types`, `libraries/semantic/src/checker.rs:36` mengisinya, dan tidak ada query lain terhadapnya. **Tidak ada type inference maupun type checking.** |
+| scope | **SELESAI** | `libraries/semantic/src/scope.rs` dan `libraries/semantic/src/name_resolver.rs` |
+| AST specification | **SEBAGIAN** | Struktur AST ada di `libraries/language/src/ast/` (10 file), tetapi spesifikasi formalnya hanya prosa di `docs/prd.md`. |
 
 **Dampak:** acceptance criteria `docs/prd.md` bagian 71 yang mensyaratkan
 "compiler dapat memberikan error yang jelas" untuk kasus salah tipe belum
@@ -117,11 +119,11 @@ bersifat struktural, misalnya `unknown-element`, `unknown-property`, dan
 **Catatan sistem warning.** `Warning` dan `WarningKind` benar-benar dipakai:
 `cli/src/output/diagnostics.rs:26-27` merendernya di dalam `render()` yang
 dimulai di `:8`, sehingga `build` dan `check` keduanya menampilkannya. Tetapi
-dari 11 variant di `compiler/src/diagnostics/warning.rs:6-18`, hanya
+dari 11 variant di `libraries/diagnostics/src/warning.rs:6-18`, hanya
 `Convention` yang pernah dibuat, dan hanya di satu tempat,
-`compiler/src/semantic/checker.rs:206-215` untuk `import` tanpa ekstensi
+`libraries/semantic/src/checker.rs:206-215` untuk `import` tanpa ekstensi
 `.plt`. `WarningKind::UnusedImport` dideklarasikan di
-`compiler/src/diagnostics/warning.rs:8` tetapi tidak pernah diinstansiasi,
+`libraries/diagnostics/src/warning.rs:8` tetapi tidak pernah diinstansiasi,
 sehingga program yang mengimpor apa pun tanpa memakainya tidak pernah
 diperingatkan. Lihat B7.
 
@@ -129,15 +131,15 @@ diperingatkan. Lihat B7.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| lexer | **SELESAI** | `compiler/src/lexer/scanner.rs`, `token.rs`, `keyword.rs`, `literal.rs`, `operator.rs` |
-| parser | **SELESAI** | `compiler/src/parser/` dengan 10 file: `app.rs`, `component.rs`, `element.rs`, `event.rs`, `expression.rs`, `function.rs`, `mod.rs`, `state.rs`, `statement.rs`, `style.rs` |
-| AST | **SELESAI** | `compiler/src/ast/` dengan 10 file |
-| semantic analyzer | **SEBAGIAN** | `compiler/src/semantic/checker.rs` memvalidasi nama, element, event, handler, dan scope. Tidak memvalidasi tipe, lihat bagian 4.1. |
-| basic code generation | **SELESAI** | `compiler/src/codegen/web/` menghasilkan `html.rs`, `css.rs`, `javascript.rs`, `dom.rs`, `tests.rs`, dan `bundle.rs` |
+| lexer | **SELESAI** | `libraries/language/src/lexer/scanner.rs`, `token.rs`, `keyword.rs`, `literal.rs`, `operator.rs` |
+| parser | **SELESAI** | `libraries/language/src/parser/` dengan 10 file: `app.rs`, `component.rs`, `element.rs`, `event.rs`, `expression.rs`, `function.rs`, `mod.rs`, `state.rs`, `statement.rs`, `style.rs` |
+| AST | **SELESAI** | `libraries/language/src/ast/` dengan 10 file |
+| semantic analyzer | **SEBAGIAN** | `libraries/semantic/src/checker.rs` memvalidasi nama, element, event, handler, dan scope. Tidak memvalidasi tipe, lihat bagian 4.1. |
+| basic code generation | **SELESAI** | `libraries/web/src/codegen/web/` menghasilkan `html.rs`, `css.rs`, `javascript.rs`, `dom.rs`, `tests.rs`, dan `bundle.rs` |
 
 Di luar daftar PRD, sudah ada satu lapisan **IR** yang tidak disebut di
-`docs/prd.md` bagian 69: `compiler/src/ir/lower.rs` untuk AST ke IR, dan
-`compiler/src/ir/verifier.rs` untuk validasi IR sebelum codegen. Verifier
+`docs/prd.md` bagian 69: `libraries/ir/src/lower.rs` untuk AST ke IR, dan
+`libraries/ir/src/verifier.rs` untuk validasi IR sebelum codegen. Verifier
 memang punya teeth: ia menolak modul kosong (`:39`), nama app yang tidak cocok
 (`:47`), path import kosong (`:61`), theme kosong (`:70`), test kosong (`:79`),
 symbol IR duplikat (`:97`, `:107`), penulisan ke derived (`:181`), dan
@@ -181,7 +183,7 @@ Status saat audit: `cargo test --workspace` hijau, **305 test lulus dan 0 gagal*
 Ada 19 target hasil test: 15 unit/integration target dan 4 doc-test target;
 dua target binary aplikasi dan seluruh doc-test kosong. Tahap Phase 4 (bagian
 4.5) menambah 10 test: 7 unit test
-di `compiler/src/codegen` (5 untuk `merge_handlers`, 2 untuk `needs_capture`),
+di `libraries/web/src/codegen` (5 untuk `merge_handlers`, 2 untuk `needs_capture`),
 3 integrasi handler di `tests/codegen/main.rs`, dan 1 harness web baru
 (`events.mjs`) yang menambah 1 test. Tahap Phase 5 (bagian 4.6) menambah
 `a_scroll_top_binding_keeps_state_in_step_with_the_scroll` di
@@ -208,11 +210,11 @@ melalui module loader yang sama dengan build CLI.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| primitive elements | **SELESAI** | 62 builtin terdaftar di `compiler/src/semantic/element.rs:169-232` dan dibangun oleh `builtins::all()` di `compiler/src/semantic/element.rs:296-458`, dipetakan satu banding satu ke tag HTML di `compiler/src/codegen/elements/mod.rs:12-76`. Seluruh 47 primitive PRD bagian 26 sekarang ada, ditambah 15 ekstra yang tidak di-PRD. |
-| element tree | **SELESAI** | `compiler/src/ast/element.rs`, `compiler/src/codegen/elements/mod.rs`, dan vdom (`vnode`/`el`/`fragment`/`branch`) di `compiler/src/codegen/web/javascript.rs:578-594` plus rekonsiliasi (`keyOf`/`sameKind`/`patch`/`patchList`) di `:615-728` |
-| properties | **SELESAI** | 46 nama properti berbeda dideklarasikan untuk seluruh 62 builtin. 16 properti bersama untuk box (singkatnya "layout") dari `compiler/src/semantic/element.rs:277-294`; daftar elemen berbox melampaui kategori layout lewat `BOX_ELEMENTS` di `compiler/src/semantic/element.rs:239-270`; properti spesifik per elemen di `compiler/src/semantic/element.rs:306-456` (seluruh `all()`, `compiler/src/semantic/element.rs:296-458`). |
-| style | **SELESAI** | `compiler/src/codegen/style/mod.rs` dan `compiler/src/codegen/web/css.rs`, termasuk pseudo-class `:hover`, `:active`, `:focus-within`, dan `:disabled` dari `selector()` di `compiler/src/codegen/style/mod.rs:88-95` |
-| component | **SELESAI** | `compiler/src/ast/component.rs`, `compiler/src/parser/component.rs`, `compiler/src/codegen/components/mod.rs` |
+| primitive elements | **SELESAI** | 62 builtin terdaftar di `libraries/semantic/src/element.rs:169-232` dan dibangun oleh `builtins::all()` di `libraries/semantic/src/element.rs:296-458`, dipetakan satu banding satu ke tag HTML di `libraries/web/src/codegen/elements/mod.rs:12-76`. Seluruh 47 primitive PRD bagian 26 sekarang ada, ditambah 15 ekstra yang tidak di-PRD. |
+| element tree | **SELESAI** | `libraries/language/src/ast/element.rs`, `libraries/web/src/codegen/elements/mod.rs`, dan vdom (`vnode`/`el`/`fragment`/`branch`) di `libraries/web/src/codegen/web/javascript.rs:578-594` plus rekonsiliasi (`keyOf`/`sameKind`/`patch`/`patchList`) di `:615-728` |
+| properties | **SELESAI** | 46 nama properti berbeda dideklarasikan untuk seluruh 62 builtin. 16 properti bersama untuk box (singkatnya "layout") dari `libraries/semantic/src/element.rs:277-294`; daftar elemen berbox melampaui kategori layout lewat `BOX_ELEMENTS` di `libraries/semantic/src/element.rs:239-270`; properti spesifik per elemen di `libraries/semantic/src/element.rs:306-456` (seluruh `all()`, `libraries/semantic/src/element.rs:296-458`). |
+| style | **SELESAI** | `libraries/web/src/codegen/style/mod.rs` dan `libraries/web/src/codegen/web/css.rs`, termasuk pseudo-class `:hover`, `:active`, `:focus-within`, dan `:disabled` dari `selector()` di `libraries/web/src/codegen/style/mod.rs:88-95` |
+| component | **SELESAI** | `libraries/language/src/ast/component.rs`, `libraries/language/src/parser/component.rs`, `libraries/web/src/codegen/components/mod.rs` |
 
 **Ke-47 primitive PRD bagian 26 sekarang terdaftar.** Sebelumnya hanya 27 dari
 47 yang ada; audit ini menambahkan 20 yang belum ada: `Heading`, `Date`, `Time`,
@@ -236,23 +238,23 @@ mendeklarasikan properti yang benar-benar dirender: `value`, `placeholder`,
 attribute), dan `value` sebagai properti DOM. Media di 26.x: `Video` punya
 `poster`, `controls`, `autoplay`, `loop`, `muted`; `Audio` punya `controls`,
 `autoplay`, `loop`; `Canvas` punya `width` dan `height` sebagai atribut HTML
-(lihat `property_target` di `compiler/src/codegen/elements/mod.rs:115-130`).
+(lihat `property_target` di `libraries/web/src/codegen/elements/mod.rs:115-130`).
 `Form` punya `action`, `method`, `novalidate`; `Heading` punya `level`, `size`,
 `weight`; `Text` punya `size`, `weight`; `Link` punya `href`, `target`;
 `Command` punya `shortcut` dan `disabled`.
 
 **Property dideklarasikan selalu dirender, bukan dekoratif.** `is_style_property`
-di `compiler/src/codegen/elements/mod.rs:100-117` mengarahkan properti "box"
+di `libraries/web/src/codegen/elements/mod.rs:100-117` mengarahkan properti "box"
 ke CSS (elemen layout + `BOX_ELEMENTS`, digabung dengan properti bersama dari
 kanal `Style`), sedangkan sisanya menjadi atribut HTML atau properti DOM. Dua
-pengecualian CSS baru: `size` → `font-size` dan `weight` → `font-weight` di
-`compiler/src/codegen/style/mod.rs:13-17`, jadi `Heading "T" { level: 2 size: 20
+pengecualian CSS baru: `size` â†’ `font-size` dan `weight` â†’ `font-weight` di
+`libraries/web/src/codegen/style/mod.rs:13-17`, jadi `Heading "T" { level: 2 size: 20
 weight: 700 }` menghasilkan tag `h2` (dipilih `heading_tag()` di
-`compiler/src/codegen/components/mod.rs:149-166`), class `plt-eN` dengan dua
+`libraries/web/src/codegen/components/mod.rs:149-166`), class `plt-eN` dengan dua
 deklarasi CSS, dan tidak ada atribut `level` yang bocor. Media tidak ikut
 "box": `Video { width: 100 }` tetap menjadi atribut HTML karena semantik
 `<video width>`; test `only_layout_primitives_take_style_properties` di
-`compiler/src/codegen/elements/mod.rs:231-237` menjaga batas itu.
+`libraries/web/src/codegen/elements/mod.rs:231-237` menjaga batas itu.
 
 Guard jumlah: `catalog_primitives_are_registered` dan
 `catalog_covers_the_documented_builtin_surface` di `tests/semantic/main.rs`
@@ -264,10 +266,10 @@ dalam satu pohon.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| state | **SELESAI** | 5 jenis state dideklarasikan di `compiler/src/ast/state.rs:5-11`: `Local`, `Shared`, `Global`, `Persistent`, `Derived`. Di IR menjadi `IrStateKind` di `compiler/src/ir/expression.rs:80`, dipetakan ke scope penyimpanan di `compiler/src/codegen/state/mod.rs:88-95`. Sisi host ada di `runtime/src/state.rs`. |
-| derived state | **SELESAI** | `runtime/src/derived.rs`; dependensi dikumpulkan oleh `dependencies()` di `compiler/src/ir/lower.rs:293-300` dan dibaca helper `derived_dependencies()` di `compiler/src/codegen/state/mod.rs:114-116` |
-| dependency tracking | **SEBAGIAN** | Daftar dependensi diteruskan ke `plt.computed()` di `compiler/src/codegen/web/javascript.rs:246`. Dependensi dipakai untuk menentukan kapan nilai dihitung ulang, **tidak** untuk mempersempit re-render hanya ke subtree yang berubah. Yang sudah ada adalah batas transaksi: satu dispatch DOM adalah satu render, bukan satu render per listener (lihat catatan di bawah). |
-| reactive update | **SELESAI** | `refresh()` di `compiler/src/codegen/web/javascript.rs:1372-1396`, dipicu oleh setter signal di `compiler/src/codegen/web/javascript.rs:233-237` |
+| state | **SELESAI** | 5 jenis state dideklarasikan di `libraries/language/src/ast/state.rs:5-11`: `Local`, `Shared`, `Global`, `Persistent`, `Derived`. Di IR menjadi `IrStateKind` di `libraries/ir/src/expression.rs:80`, dipetakan ke scope penyimpanan di `libraries/web/src/codegen/state/mod.rs:88-95`. Sisi host ada di `runtime/src/state.rs`. |
+| derived state | **SELESAI** | `runtime/src/derived.rs`; dependensi dikumpulkan oleh `dependencies()` di `libraries/ir/src/lower.rs:293-300` dan dibaca helper `derived_dependencies()` di `libraries/web/src/codegen/state/mod.rs:114-116` |
+| dependency tracking | **SEBAGIAN** | Daftar dependensi diteruskan ke `plt.computed()` di `libraries/web/src/codegen/web/javascript.rs:246`. Dependensi dipakai untuk menentukan kapan nilai dihitung ulang, **tidak** untuk mempersempit re-render hanya ke subtree yang berubah. Yang sudah ada adalah batas transaksi: satu dispatch DOM adalah satu render, bukan satu render per listener (lihat catatan di bawah). |
+| reactive update | **SELESAI** | `refresh()` di `libraries/web/src/codegen/web/javascript.rs:1372-1396`, dipicu oleh setter signal di `libraries/web/src/codegen/web/javascript.rs:233-237` |
 
 Catatan performa: fan-out signal bersifat sinkron, sehingga satu penulisan
 state memicu satu render penuh secara langsung. Yang berubah pada revisi ini
@@ -284,16 +286,16 @@ temuan Phase 9 pada bagian 4.10.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| event dispatcher | **SELESAI** | 28 pemetaan nama event ke event DOM di `compiler/src/codegen/events/mod.rs:15-46`. Semua listener dipasang lewat `node.addEventListener` di `compiler/src/codegen/web/javascript.rs:1101` (satu listener bersama per event, lihat catatan batching di bawah), `:1208-1209` (pasangan pointer untuk `swipe`), dan `:1327` (custom event). |
-| event object | **SELESAI** | Runtime `plt.event()` di `compiler/src/codegen/web/javascript.rs:831-864` membangun objek `{ value, key, data, position, target, type, originalEvent }` dengan `stopPropagation`/`preventDefault` yang diteruskan ke raw event. Codegen menyuntik `const event = plt.event(raw);` ke handler yang membaca `event` (bukan custom/lifecycle) di `compiler/src/codegen/components/mod.rs:214-217`. `value` membaca `target.value` (atau `checked` untuk checkbox/radio, dan `textContent` untuk `contenteditable`), `position` memakai `clientX`/`clientY`, dan `data` dibaca lewat `transferData()` di `:809-829`: `raw.data` bila ada, kalau tidak `getData("text/plain")` dari `dataTransfer`, dan `undefined` bila tidak ada payload maupun `getData` (yang hanya terbaca di dalam handler drop sungguhan). |
-| event propagation | **SELESAI** | `event.stopPropagation()` diteruskan ke raw event (`compiler/src/codegen/web/javascript.rs:853-855`), jadi bubbling bisa dihentikan. Delegasi event: `EventCategory::is_bubbling` di `compiler/src/ast/event.rs:73-84` dipanggil oleh `needs_capture()` di `compiler/src/codegen/events/mod.rs:54-57`, yang mengarahkan event non-bubbling (form + `scroll`) menjadi descriptor `[handler, true]` di `compiler/src/codegen/components/mod.rs:219-223`; `subscribe()` di `compiler/src/codegen/web/javascript.rs:1079-1106` lalu memasang descriptor itu pada fase capture, sehingga ancestor tetap mengamati event yang tidak mencapai dirinya lewat bubbling. Listener capture dan listener bubble pada event yang sama tidak boleh berbagi listener, jadi fase capture adalah bagian dari identitas grup di `:1084` (`id = capture ? \`${key}!\` : key`). |
-| custom event | **SELESAI** | Statement `emit` di `compiler/src/parser/event.rs:25-40` menjadi `plt.emit()` di `compiler/src/codegen/statement.rs:80-81`, dengan emitter komponen di `compiler/src/codegen/web/javascript.rs:775-791` dan dispatch payload di `:793-802`. Handler custom menerima payload mentah yang di-`emit`, bukan event DOM: `compiler/src/codegen/components/mod.rs:208-210`. |
+| event dispatcher | **SELESAI** | 28 pemetaan nama event ke event DOM di `libraries/web/src/codegen/events/mod.rs:15-46`. Semua listener dipasang lewat `node.addEventListener` di `libraries/web/src/codegen/web/javascript.rs:1101` (satu listener bersama per event, lihat catatan batching di bawah), `:1208-1209` (pasangan pointer untuk `swipe`), dan `:1327` (custom event). |
+| event object | **SELESAI** | Runtime `plt.event()` di `libraries/web/src/codegen/web/javascript.rs:831-864` membangun objek `{ value, key, data, position, target, type, originalEvent }` dengan `stopPropagation`/`preventDefault` yang diteruskan ke raw event. Codegen menyuntik `const event = plt.event(raw);` ke handler yang membaca `event` (bukan custom/lifecycle) di `libraries/web/src/codegen/components/mod.rs:214-217`. `value` membaca `target.value` (atau `checked` untuk checkbox/radio, dan `textContent` untuk `contenteditable`), `position` memakai `clientX`/`clientY`, dan `data` dibaca lewat `transferData()` di `:809-829`: `raw.data` bila ada, kalau tidak `getData("text/plain")` dari `dataTransfer`, dan `undefined` bila tidak ada payload maupun `getData` (yang hanya terbaca di dalam handler drop sungguhan). |
+| event propagation | **SELESAI** | `event.stopPropagation()` diteruskan ke raw event (`libraries/web/src/codegen/web/javascript.rs:853-855`), jadi bubbling bisa dihentikan. Delegasi event: `EventCategory::is_bubbling` di `libraries/language/src/ast/event.rs:73-84` dipanggil oleh `needs_capture()` di `libraries/web/src/codegen/events/mod.rs:54-57`, yang mengarahkan event non-bubbling (form + `scroll`) menjadi descriptor `[handler, true]` di `libraries/web/src/codegen/components/mod.rs:219-223`; `subscribe()` di `libraries/web/src/codegen/web/javascript.rs:1079-1106` lalu memasang descriptor itu pada fase capture, sehingga ancestor tetap mengamati event yang tidak mencapai dirinya lewat bubbling. Listener capture dan listener bubble pada event yang sama tidak boleh berbagi listener, jadi fase capture adalah bagian dari identitas grup di `:1084` (`id = capture ? \`${key}!\` : key`). |
+| custom event | **SELESAI** | Statement `emit` di `libraries/language/src/parser/event.rs:25-40` menjadi `plt.emit()` di `libraries/web/src/codegen/statement.rs:80-81`, dengan emitter komponen di `libraries/web/src/codegen/web/javascript.rs:775-791` dan dispatch payload di `:793-802`. Handler custom menerima payload mentah yang di-`emit`, bukan event DOM: `libraries/web/src/codegen/components/mod.rs:208-210`. |
 | lifecycle event | **SELESAI** | Keempatnya fire dari runtime. Bukti dan semantik di catatan berikut. |
 
 Jumlah event yang dipetakan adalah **28**, yaitu seluruh 32 nama di
-`compiler/src/ast/event.rs:94` dikurangi 4 lifecycle. `focusin`, `focusout`, dan
+`libraries/language/src/ast/event.rs:94` dikurangi 4 lifecycle. `focusin`, `focusout`, dan
 `select` yang sebelumnya tidak punya pasangan kini terpetakan di
-`compiler/src/codegen/events/mod.rs:35-37`, sehingga tidak ada lagi nama event
+`libraries/web/src/codegen/events/mod.rs:35-37`, sehingga tidak ada lagi nama event
 yang dikenal compiler tetapi jatuh ke kanal custom "plt:..." secara keliru.
 
 **Keempat lifecycle event sekarang fire.** B3 menutup cacat yang sama: handler
@@ -301,14 +303,14 @@ yang lolos kompilasi tapi tidak pernah dijalankan. `on create` dan `on update`
 dihandle oleh runtime JS, bukan lewat channel, karena keduanya adalah titik
 siklus hidup, bukan event DOM. Titik pemanggilnya:
 
-* `create` pada element di `compiler/src/codegen/web/javascript.rs:1002`, pada
+* `create` pada element di `libraries/web/src/codegen/web/javascript.rs:1002`, pada
   component di `:1318` dan `:1405`;
 * `mount` pada element di `:1260`, pada component di `:1343`;
 * `update` pada element di `:1010`, pada component di `:977` dan `:1391`;
 * `destroy` pada element di `:1280`, pada component di `:1296`.
 
 Penulisan state di dalam `mount` tidak hilang: `mountTree()` di
-`compiler/src/codegen/web/javascript.rs:1338-1349` menyetel flag `busy` dan
+`libraries/web/src/codegen/web/javascript.rs:1338-1349` menyetel flag `busy` dan
 mengantar render lanjutan lewat antrean `pending` yang diproses oleh
 `refresh()` di `:1372-1396` (loop `while (instance.pending || instance.dirty)`
 pada `:1392`).
@@ -326,7 +328,7 @@ di akhir handler itu, `applyDom()` menulis ulang `textContent` dari state yang
 baru, lalu listener `bind` yang berjalan berikutnya membaca kotak yang sudah
 ditimpa: state kembali ke teks lama dan caret meloncat ke awal. Perbaikan bukan
 menambah jeda, melainkan memindahkan batas render: `subscribe()` di
-`compiler/src/codegen/web/javascript.rs:1079-1106` memasang **satu** listener DOM
+`libraries/web/src/codegen/web/javascript.rs:1079-1106` memasang **satu** listener DOM
 per (event, fase) dan menjalankan seluruh callback yang terdaftar di dalamnya di
 dalam satu `beginBatch()`/`endBatch()`, sehingga tidak ada render di antara dua
 listener pada event yang sama.
@@ -340,7 +342,7 @@ listener per event, bukan satu per render. `unsubscribe()` di `:1131-1147`
 melepas listener DOM begitu tidak ada lagi callback yang memakainya, dan
 `unsubscribeAll()` di `:1149-1153` dipakai `destroy()` di `:1273-1288`.
 
-Selain itu `applyDom()` di `compiler/src/codegen/web/javascript.rs:1048-1060`
+Selain itu `applyDom()` di `libraries/web/src/codegen/web/javascript.rs:1048-1060`
 tidak lagi menulis `textContent` pada `contenteditable` tanpa syarat: nilai
 hanya ditulis bila berbeda, sehingga render ulang yang tidak mengubah isi tidak
 membuang caret. Bukti eksekusi: `tests/web/ui.mjs` menguji kedua hal itu, yaitu
@@ -349,7 +351,7 @@ bahwa `on input` beserta `bind` berbagi tepat satu listener.
 
 Selain itu, `EventCategory::Clipboard`, `Media`, `Animation`, dan
 `Application` adalah enum variant yang tidak terjangkau: `category_of()` di
-`compiler/src/semantic/events.rs:27-53` tidak pernah mengembalikan keempatnya.
+`libraries/semantic/src/events.rs:27-53` tidak pernah mengembalikan keempatnya.
 
 ### 4.6 Phase 5 - Layout
 
@@ -357,28 +359,28 @@ Status keseluruhan fase ini adalah **SELESAI**.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| Row | **SELESAI** | `compiler/src/codegen/layout/mod.rs:7` memakai `display: flex; flex-direction: row;` |
-| Column | **SELESAI** | `compiler/src/codegen/layout/mod.rs:6` memakai `display: flex; flex-direction: column;` |
-| Stack | **SELESAI** | `gap: 8` kini menjadi CSS `gap: 8px` lewat kanal `Style` di `compiler/src/codegen/elements/mod.rs`, bukan atribut HTML. |
-| Grid | **SELESAI** | `columns: 3` dipetakan ke nama CSS `grid-template-columns` oleh `PROPERTY_EXCEPTIONS` di `compiler/src/codegen/style/mod.rs:16`, lalu
+| Row | **SELESAI** | `libraries/web/src/codegen/layout/mod.rs:7` memakai `display: flex; flex-direction: row;` |
+| Column | **SELESAI** | `libraries/web/src/codegen/layout/mod.rs:6` memakai `display: flex; flex-direction: column;` |
+| Stack | **SELESAI** | `gap: 8` kini menjadi CSS `gap: 8px` lewat kanal `Style` di `libraries/web/src/codegen/elements/mod.rs`, bukan atribut HTML. |
+| Grid | **SELESAI** | `columns: 3` dipetakan ke nama CSS `grid-template-columns` oleh `PROPERTY_EXCEPTIONS` di `libraries/web/src/codegen/style/mod.rs:16`, lalu
 Nilainya menjadi `repeat(3, minmax(0, 1fr))` di `css_value()` pada `:71-73`, dan `gap` mengikuti jalur CSS yang sama. |
-| Container | **SELESAI** | Terdaftar di `compiler/src/semantic/element.rs:171`, dipetakan ke `div` di `compiler/src/codegen/elements/mod.rs:15`, dengan base `display: block` di `compiler/src/codegen/layout/mod.rs:5`. |
-| Scroll | **SELESAI** | `compiler/src/codegen/layout/mod.rs:9` memberi `overflow: auto;`. Posisi scroll menjadi state reaktif: `on scroll` memberi `event.position` (lihat 4.5), dan binding `bind scrollTop: state`/`bind scrollLeft: state` menyinkronkan posisi scroll dua arah. Binding scroll dipasang oleh `applyBinds()` di `compiler/src/codegen/web/javascript.rs:1212-1244`, yang memilih listener `scroll` (bukan `input`) untuk nama sama dengan awalan `scroll` dan menulis balik `node.scrollTop`/`scrollLeft` ke state; seed tidak melawan scroll yang sedang berjalan karena hanya menulis bila nilai DOM berbeda dari state. Listener scroll ini berbagi listener dengan `on scroll` pada node yang sama lewat
+| Container | **SELESAI** | Terdaftar di `libraries/semantic/src/element.rs:171`, dipetakan ke `div` di `libraries/web/src/codegen/elements/mod.rs:15`, dengan base `display: block` di `libraries/web/src/codegen/layout/mod.rs:5`. |
+| Scroll | **SELESAI** | `libraries/web/src/codegen/layout/mod.rs:9` memberi `overflow: auto;`. Posisi scroll menjadi state reaktif: `on scroll` memberi `event.position` (lihat 4.5), dan binding `bind scrollTop: state`/`bind scrollLeft: state` menyinkronkan posisi scroll dua arah. Binding scroll dipasang oleh `applyBinds()` di `libraries/web/src/codegen/web/javascript.rs:1212-1244`, yang memilih listener `scroll` (bukan `input`) untuk nama sama dengan awalan `scroll` dan menulis balik `node.scrollTop`/`scrollLeft` ke state; seed tidak melawan scroll yang sedang berjalan karena hanya menulis bila nilai DOM berbeda dari state. Listener scroll ini berbagi listener dengan `on scroll` pada node yang sama lewat
 wrapper bersama di `:1090-1097`, jadi satu event scroll menghasilkan satu render. Dilindungi test `a_scroll_top_binding_keeps_state_in_step_with_the_scroll` di `tests/codegen/main.rs` dan 1 assertion di `events.mjs`. Perilaku sticky tidak di-PRD. |
 | responsive layout | **SELESAI** | Satu kosakata breakpoint di parser, IR, dan emitter. Lihat catatan berikut. |
 
-Seluruh base rule layout ada di `compiler/src/codegen/layout/mod.rs:3-12`.
+Seluruh base rule layout ada di `libraries/web/src/codegen/layout/mod.rs:3-12`.
 
 **`responsive { }` sekarang menghasilkan `@media`.** Rantainya dulu terputus
 karena parser menerima `mobile`/`tablet`/`desktop` sementara emitter mencari
 `Small`/`Medium`/`Large`/`XLarge`, lalu melewati kelompok yang tidak ditemukan
 secara diam-diam. Sekarang `BREAKPOINTS` di
-`compiler/src/codegen/layout/mod.rs:31` memakai kosakata yang sama dengan
+`libraries/web/src/codegen/layout/mod.rs:31` memakai kosakata yang sama dengan
 parser, `breakpoint_of()` di `:37-42` mengembalikan `None` untuk
 `BASE_BREAKPOINT` (`mobile`, `:34`) sehingga `mobile` menjadi base dan tidak
 memerlukan `@media`, sedangkan `tablet` (`48rem`) dan `desktop` (`64rem`)
 menghasilkan rule. `render_responsive()` di
-`compiler/src/codegen/web/css.rs:162-219` tidak lagi melewati kelompok tak
+`libraries/web/src/codegen/web/css.rs:162-219` tidak lagi melewati kelompok tak
 diketahui secara diam-diam.
 
 Element swap per breakpoint dihapus. `mobile: Column { }` tidak lagi parse dan
@@ -392,7 +394,7 @@ Properti responsif diarahkan ke CSS, bukan ke atribut HTML. Test yang menutup:
 `a_responsive_named_style_reaches_the_stylesheet` di `tests/codegen/main.rs`.
 
 Klasifikasi dipisah per instance element lewat `override_class()` di
-`compiler/src/codegen/components/mod.rs:59-63`, yaitu `plt-e{element.span.start}`,
+`libraries/web/src/codegen/components/mod.rs:59-63`, yaitu `plt-e{element.span.start}`,
 sehingga `.plt-column` yang di-override pada satu `Column` tidak bleduh ke
 semua `Column` lain.
 
@@ -401,7 +403,7 @@ semua `Column` lain.
 Status keseluruhan fase ini adalah **SELESAI**.
 
 Seluruh touchpoint browser yang dipakai JavaScript hasil generate ada di
-`compiler/src/codegen/web/javascript.rs`. **20 API berbeda**, nomor baris
+`libraries/web/src/codegen/web/javascript.rs`. **20 API berbeda**, nomor baris
 dihitung ulang pada revisi ini:
 
 | API | Call site |
@@ -429,46 +431,46 @@ dihitung ulang pada revisi ini:
 
 Catatan versi dokumen sebelumnya tentang `innerWidth` dan `addEventListener`
 masih berlaku: keduanya **tidak** dipakai untuk mengukur apa pun.
-`globalThis.innerWidth = 1024` di `compiler/src/codegen/web/dom.rs:271` hanyalah
+`globalThis.innerWidth = 1024` di `libraries/web/src/codegen/web/dom.rs:271` hanyalah
 konstanta stub di shim Node, dan `addEventListener` di `:205` adalah placeholder.
 Tidak ada `matchMedia`, tidak ada listener `resize`, tidak ada breakpoint yang
 dievaluasi di client.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| DOM integration | **SELESAI** | vdom dan rekonsiliasi penuh di `compiler/src/codegen/web/javascript.rs:866-1016` (`patchList` di `:920`, `patch` di `:962`), pemetaan tag di
-`compiler/src/codegen/elements/mod.rs:12-55`, pemisahan atribut dan properti DOM di `compiler/src/codegen/elements/mod.rs:84-126` |
+| DOM integration | **SELESAI** | vdom dan rekonsiliasi penuh di `libraries/web/src/codegen/web/javascript.rs:866-1016` (`patchList` di `:920`, `patch` di `:962`), pemetaan tag di
+`libraries/web/src/codegen/elements/mod.rs:12-55`, pemisahan atribut dan properti DOM di `libraries/web/src/codegen/elements/mod.rs:84-126` |
 | browser event integration | **SELESAI** | 28 event terpetakan, keempat lifecycle event, event object ternormalisasi, dan propagation berjalan, lihat bagian 4.5. |
-| storage | **SELESAI** | `store()`/`load()`/`drop()` di `compiler/src/codegen/web/javascript.rs:518-560` melayani tiga backend: `local` dan `session` sinkron lewat `storageBackend()` di `:478-483` (localStorage, sessionStorage, round-trip JSON di `:523` dan `:537`), `indexed` async lewat `idb()`/`idbRequest()` di `:485-516` (IndexedDB, store `kv`, database `platipus`). State `persistent` tetap ditangani `persistent()` di `:271-289`. Shim test menyediakan `localStorage`/`sessionStorage` memakai `memoryStorage()` di `compiler/src/codegen/web/dom.rs` dan IndexedDB deterministik `BlankIndexedDB` di bawahnya. |
-| fetch | **SELESAI** | `fetch()` di `compiler/src/codegen/web/javascript.rs:305-344` membungkus `globalThis.fetch` dan selalu resolve: sukses menjadi `{ request, status, ok, type, text, json, error }`, dan gagal menjadi objek yang sama dengan `ok: false` serta `error` terisi, jadi handler yang menulis hasilnya ke state tidak perlu menangkap rejection. |
-| clipboard | **SELESAI** | `clipboardWrite()`/`clipboardRead()` di `compiler/src/codegen/web/javascript.rs:346-366` memakai `navigator.clipboard` bila ada dan resolve `false`/`""` bila tidak tersedia. Shim hanya menyuntik clipboard bila `navigator` tidak memilikinya (guard getter-only di `compiler/src/codegen/web/dom.rs`). `EventCategory::Clipboard` di `compiler/src/ast/event.rs:36-49` tetap tidak terjangkau oleh `category_of()` (`compiler/src/semantic/events.rs:27-53`) dan tidak ada clipboard event di `ALL` (`compiler/src/ast/event.rs:94`); kanal event clipboard memang tidak menjadi bagian penyelesaian ini, tetapi jalur baca-tulis clipboard kini ada. |
-| file | **SELESAI** | `openFile()` di `compiler/src/codegen/web/javascript.rs` memakai `showOpenFilePicker` bila browser menyediakannya, menyusul fallback `<input type="file">`, dan resolve objek `{ name, size, type, text, cancelled }`. Fallback menangani event `change` dan `cancel`, lalu melepas kedua listener; `runtime.mjs` menguji pemilihan file, pembatalan, dan cleanup listener. |
+| storage | **SELESAI** | `store()`/`load()`/`drop()` di `libraries/web/src/codegen/web/javascript.rs:518-560` melayani tiga backend: `local` dan `session` sinkron lewat `storageBackend()` di `:478-483` (localStorage, sessionStorage, round-trip JSON di `:523` dan `:537`), `indexed` async lewat `idb()`/`idbRequest()` di `:485-516` (IndexedDB, store `kv`, database `platipus`). State `persistent` tetap ditangani `persistent()` di `:271-289`. Shim test menyediakan `localStorage`/`sessionStorage` memakai `memoryStorage()` di `libraries/web/src/codegen/web/dom.rs` dan IndexedDB deterministik `BlankIndexedDB` di bawahnya. |
+| fetch | **SELESAI** | `fetch()` di `libraries/web/src/codegen/web/javascript.rs:305-344` membungkus `globalThis.fetch` dan selalu resolve: sukses menjadi `{ request, status, ok, type, text, json, error }`, dan gagal menjadi objek yang sama dengan `ok: false` serta `error` terisi, jadi handler yang menulis hasilnya ke state tidak perlu menangkap rejection. |
+| clipboard | **SELESAI** | `clipboardWrite()`/`clipboardRead()` di `libraries/web/src/codegen/web/javascript.rs:346-366` memakai `navigator.clipboard` bila ada dan resolve `false`/`""` bila tidak tersedia. Shim hanya menyuntik clipboard bila `navigator` tidak memilikinya (guard getter-only di `libraries/web/src/codegen/web/dom.rs`). `EventCategory::Clipboard` di `libraries/language/src/ast/event.rs:36-49` tetap tidak terjangkau oleh `category_of()` (`libraries/semantic/src/events.rs:27-53`) dan tidak ada clipboard event di `ALL` (`libraries/language/src/ast/event.rs:94`); kanal event clipboard memang tidak menjadi bagian penyelesaian ini, tetapi jalur baca-tulis clipboard kini ada. |
+| file | **SELESAI** | `openFile()` di `libraries/web/src/codegen/web/javascript.rs` memakai `showOpenFilePicker` bila browser menyediakannya, menyusul fallback `<input type="file">`, dan resolve objek `{ name, size, type, text, cancelled }`. Fallback menangani event `change` dan `cancel`, lalu melepas kedua listener; `runtime.mjs` menguji pemilihan file, pembatalan, dan cleanup listener. |
 | WebSocket | **SELESAI** | `webSocket()` membuat koneksi lewat `new WebSocket(url)` yang di-share per URL; promise selesai saat koneksi terbuka atau menghasilkan status `error`, `closed`, `timeout`, atau `unavailable`. `send()` hanya mengirim saat status `open`; `receive()` mengantre pesan dan menyelesaikan `null` bila koneksi ditutup. Shim test memakai `TestSocket` yang auto-open dan echo. `runtime.mjs` memverifikasi status open serta send/receive. |
 
 Permukaan bahasa untuk fase ini adalah **9 builtin yang dipanggil langsung**:
 `fetch`, `writeClipboard`, `readClipboard`, `openFile`, `webSocket`, `receive`,
 `store`, `load`, `drop`. Rantainya:
 
-* `parse_component_body_items` di `compiler/src/parser/component.rs:84-91`
+* `parse_component_body_items` di `libraries/language/src/parser/component.rs:84-91`
   mengenali `async fn` sebagai item component (sebelumnya hanya `fn`), dan fn
-  async diemisi sebagai `async function` di `compiler/src/codegen/statement.rs:137`;
+  async diemisi sebagai `async function` di `libraries/web/src/codegen/statement.rs:137`;
 * ke-sembilan builtin di-bind di **awal** scope lewat `bind_builtins()` di
-  `compiler/src/codegen/state/mod.rs:55-69` dan dipanggil pertama oleh
+  `libraries/web/src/codegen/state/mod.rs:55-69` dan dipanggil pertama oleh
   `scope_for()` (`:74`), jadi state/fungsi user dengan nama sama menimpa builtin;
   semantic checker menerima nama-nama itu sebagai identifier yang boleh tanpa
-  deklarasi: `BUILTIN_FUNCTIONS` di `compiler/src/semantic/checker.rs:786`,
+  deklarasi: `BUILTIN_FUNCTIONS` di `libraries/semantic/src/checker.rs:786`,
   `is_builtin_function()` di `:798`, gate-nya di `:650`;
 * setiap handler kini diemisi **async** agar `await` legal di body-nya:
-  `merge_handlers` di `compiler/src/codegen/components/mod.rs:204-217`;
+  `merge_handlers` di `libraries/web/src/codegen/components/mod.rs:204-217`;
 * builtin dilower ke panggilan `plt.*`, dan ke-sembilan nama diekspor dari IIFE
-  di `compiler/src/codegen/web/javascript.rs:992-1000`.
+  di `libraries/web/src/codegen/web/javascript.rs:992-1000`.
 
 Bukti eksekusi: 4 test integrasi di `tests/codegen/main.rs` (`a_fetch_call_is_lowered_to_the_plt_runtime`,
 `a_web_socket_handle_keeps_its_method_calls`, `clipboard_file_and_storage_builtins_map_to_the_runtime`,
 `a_handler_body_may_await`) plus harness Node `runtime.mjs` (lihat bagian 4.2)
 yang menguji semuanya dalam satu program `tests/web/fixtures/runtime.plt`:
 `fetch` data:, clipboard, file picker stub, WebSocket + `receive`, dan ketiga
-backend storage, ditambah pemilihan dan pembatalan fallback file picker — 8
+backend storage, ditambah pemilihan dan pembatalan fallback file picker â€” 8
 assertion, nol gagal.
 
 Catatan arsitektur: crate `runtime` hanya berisi 4 file datar, yaitu
@@ -492,18 +494,18 @@ runtime yang benar-benar dieksekusi test, tetapi belum lengkap terhadap PRD.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| Canvas | **SEBAGIAN** | `width`/`height` sebagai atribut HTML (lihat 4.3), lalu 5 builtin: `canvas()` di `compiler/src/codegen/web/javascript.rs:562-569` mencari node berdasarkan `id`, `fill()` di `:580-591`, `clear()` di `:593-616`, `drawText()` di `:618-633`, dan `nextFrame()` di `:635-642` untuk loop per frame. `canvas2d()` di `:571-578` memanggil `getContext("2d")` dan menyimpan context di node. Shim menyediakan `getContext` yang merekam operasi di `compiler/src/codegen/web/dom.rs:175-202` dan `globalThis.requestAnimationFrame` di `:282-286`. Bukti eksekusi: `canvas drawing records operations under a resolved id` di `tests/web/ui.mjs`. **Yang belum ada:** path, `arc`, `bezier`, transform, `measureText`, dan gambar. `clear()` juga sudah diperbaiki: area pembersihan diambil dari `node.width`/`node.height` (`:601-602`), bukan konstanta 1000x1000 yang membuat canvas besar tidak pernah bersih dan canvas kecil terisi berlebihan. |
-| Editor | **SEBAGIAN** | Dirender sebagai `div` dengan `contenteditable` (lihat 4.3), lalu 3 builtin: `exec()` di `compiler/src/codegen/web/javascript.rs:651-662` menjalankan perintah editor pada node yang fokus, `selection()` di `:664-683` melaporkan `start`/`end` dari `window.getSelection()`, dan `indent()` di `:685-706`. `applyDom()` di `:1048-1060` memperlakukan `contenteditable` sebagai `textContent` dan hanya menulis bila berbeda, sehingga render tidak membuang caret. Bukti eksekusi: `a contenteditable editor binds text and reports the caret` dan `exec runs editing commands on the focused editor` di `tests/web/ui.mjs`. **Yang belum ada:** undo/redo sendiri, peta clipboard di luar `exec`, dan keymap. |
-| CodeEditor | **SEBAGIAN** | Dirender sebagai `textarea` dengan `language`/`value`/`placeholder` (lihat 4.3), lalu overlay token: `highlightHtml()` di `compiler/src/codegen/web/javascript.rs:738-752` membagi teks menjadi span `plt-tok`, dan `ensureCodeOverlay()` di `:754-766` memasang overlay yang duduk di samping textarea, dengan `syncCodeOverlay()` di `:768-773` yang menyinkronkannya setiap render. Bukti eksekusi: `a highlighted code editor keeps its token overlay in sync` di `tests/web/ui.mjs`. **Yang belum ada:** gutter nomor baris, font monospace per bahasa, completion, dan LSP. |
-| DataGrid | **SEBAGIAN** | Element `DataGrid` terdaftar dan dipetakan ke `table` bersama `TableRow`, `Cell`, dan `Header` (lihat 4.3). Logikanya datang dari 2 builtin: `sortBy()` di `compiler/src/codegen/web/javascript.rs:708-726` (kunci opsional, arah `asc`/`desc`) dan `page()` di `:728-736` (jendela halaman, bukan indeks item). Bukti eksekusi: `sortBy and page window the grid rows` di `tests/web/ui.mjs` dan `data_grid_builtins_sort_and_page_lists` di `tests/codegen/main.rs`. **Yang belum ada:** sorting lewat klik kolom, editing sel, virtualisasi baris, dancolumnwidth. |
+| Canvas | **SEBAGIAN** | `width`/`height` sebagai atribut HTML (lihat 4.3), lalu 5 builtin: `canvas()` di `libraries/web/src/codegen/web/javascript.rs:562-569` mencari node berdasarkan `id`, `fill()` di `:580-591`, `clear()` di `:593-616`, `drawText()` di `:618-633`, dan `nextFrame()` di `:635-642` untuk loop per frame. `canvas2d()` di `:571-578` memanggil `getContext("2d")` dan menyimpan context di node. Shim menyediakan `getContext` yang merekam operasi di `libraries/web/src/codegen/web/dom.rs:175-202` dan `globalThis.requestAnimationFrame` di `:282-286`. Bukti eksekusi: `canvas drawing records operations under a resolved id` di `tests/web/ui.mjs`. **Yang belum ada:** path, `arc`, `bezier`, transform, `measureText`, dan gambar. `clear()` juga sudah diperbaiki: area pembersihan diambil dari `node.width`/`node.height` (`:601-602`), bukan konstanta 1000x1000 yang membuat canvas besar tidak pernah bersih dan canvas kecil terisi berlebihan. |
+| Editor | **SEBAGIAN** | Dirender sebagai `div` dengan `contenteditable` (lihat 4.3), lalu 3 builtin: `exec()` di `libraries/web/src/codegen/web/javascript.rs:651-662` menjalankan perintah editor pada node yang fokus, `selection()` di `:664-683` melaporkan `start`/`end` dari `window.getSelection()`, dan `indent()` di `:685-706`. `applyDom()` di `:1048-1060` memperlakukan `contenteditable` sebagai `textContent` dan hanya menulis bila berbeda, sehingga render tidak membuang caret. Bukti eksekusi: `a contenteditable editor binds text and reports the caret` dan `exec runs editing commands on the focused editor` di `tests/web/ui.mjs`. **Yang belum ada:** undo/redo sendiri, peta clipboard di luar `exec`, dan keymap. |
+| CodeEditor | **SEBAGIAN** | Dirender sebagai `textarea` dengan `language`/`value`/`placeholder` (lihat 4.3), lalu overlay token: `highlightHtml()` di `libraries/web/src/codegen/web/javascript.rs:738-752` membagi teks menjadi span `plt-tok`, dan `ensureCodeOverlay()` di `:754-766` memasang overlay yang duduk di samping textarea, dengan `syncCodeOverlay()` di `:768-773` yang menyinkronkannya setiap render. Bukti eksekusi: `a highlighted code editor keeps its token overlay in sync` di `tests/web/ui.mjs`. **Yang belum ada:** gutter nomor baris, font monospace per bahasa, completion, dan LSP. |
+| DataGrid | **SEBAGIAN** | Element `DataGrid` terdaftar dan dipetakan ke `table` bersama `TableRow`, `Cell`, dan `Header` (lihat 4.3). Logikanya datang dari 2 builtin: `sortBy()` di `libraries/web/src/codegen/web/javascript.rs:708-726` (kunci opsional, arah `asc`/`desc`) dan `page()` di `:728-736` (jendela halaman, bukan indeks item). Bukti eksekusi: `sortBy and page window the grid rows` di `tests/web/ui.mjs` dan `data_grid_builtins_sort_and_page_lists` di `tests/codegen/main.rs`. **Yang belum ada:** sorting lewat klik kolom, editing sel, virtualisasi baris, dancolumnwidth. |
 | Tree | **SEBAGIAN** | Element `Tree` terdaftar dan dipetakan ke `ul` (lihat 4.3). Expand/collapse **tidak** punya runtime khusus: itu idiom komponen biasa, yaitu
 state boolean plus `if`, dan itulah cara `TreeDemo` di
-`tests/web/fixtures/ui.plt:95-117` mengujinya. Yang ada di runtime adalah DnD: payload drag kini terbaca sebagai `event.data` lewat `transferData()` di `compiler/src/codegen/web/javascript.rs:809-829`, yang dipakai `on drop`. Bukti eksekusi: `a tree column expands and drops data onto a node` di `tests/web/ui.mjs`. **Yang belum ada:** indentasi guide, lazy load, dan state node tree. |
-| advanced interaction | **SEBAGIAN** | `swipe` diturunkan dari pasangan `pointerdown`/`pointerup` oleh `listenForSwipe()` di `compiler/src/codegen/web/javascript.rs:1186-1210` dengan ambang 24px dan payload `{ dx, dy, dir }`; `nextFrame()` di `:635-642` memberi loop per frame; properti `transition` terdaftar di `compiler/src/semantic/element.rs:294` dan dirender sebagai CSS. Bukti: `swipe_is_composed_from_pointer_events` di `tests/codegen/main.rs` yang juga asserting `transition: 0.3s;` benar-benar sampai ke stylesheet. **Yang belum ada:** pinch, spring, dan ambang swipe yang bisa diatur. |
+`tests/web/fixtures/ui.plt:95-117` mengujinya. Yang ada di runtime adalah DnD: payload drag kini terbaca sebagai `event.data` lewat `transferData()` di `libraries/web/src/codegen/web/javascript.rs:809-829`, yang dipakai `on drop`. Bukti eksekusi: `a tree column expands and drops data onto a node` di `tests/web/ui.mjs`. **Yang belum ada:** indentasi guide, lazy load, dan state node tree. |
+| advanced interaction | **SEBAGIAN** | `swipe` diturunkan dari pasangan `pointerdown`/`pointerup` oleh `listenForSwipe()` di `libraries/web/src/codegen/web/javascript.rs:1186-1210` dengan ambang 24px dan payload `{ dx, dy, dir }`; `nextFrame()` di `:635-642` memberi loop per frame; properti `transition` terdaftar di `libraries/semantic/src/element.rs:294` dan dirender sebagai CSS. Bukti: `swipe_is_composed_from_pointer_events` di `tests/codegen/main.rs` yang juga asserting `transition: 0.3s;` benar-benar sampai ke stylesheet. **Yang belum ada:** pinch, spring, dan ambang swipe yang bisa diatur. |
 
 Sepuluh builtin Phase 7 (`canvas`, `fill`, `clear`, `drawText`, `nextFrame`,
 `exec`, `selection`, `indent`, `sortBy`, `page`) dipetakan ke scope komponen
-lewat `bind_builtins()` di `compiler/src/codegen/state/mod.rs` dengan cara yang
+lewat `bind_builtins()` di `libraries/web/src/codegen/state/mod.rs` dengan cara yang
 sama seperti sembilan builtin Phase 6 (lihat 4.7), sehingga nama yang sama dipakai
 user tetap menimpanya.
 
@@ -519,7 +521,7 @@ yang ada adalah loop yang diminta program, bukan penjadwalan render framework.
 | CLI | **SELESAI** | 9 command di `cli/src/command/mod.rs:17-27`: `new`, `build`, `check`, `run`, `test`, `dev`, `format`, `help`, `version`. Flag di `cli/src/config/mod.rs:86-122`: `-h`, `--help`, `-v`, `--version`, `-q`, `--quiet`, `--check`, `-o`, `--out`, `-p`, `--port`. |
 | formatter | **SELESAI** | `cli/src/command/format.rs`. Layout-only: setiap token ditulis ulang dari byte aslinya memakai span-nya, jadi hanya whitespace *antar* token yang diganti dan komentar, isi string, serta teks token selamat. BOM disimpan dan dikembalikan, file yang tidak lex ditolak, dan unit test di modul itu menjaga semuanya, termasuk `formatting_is_idempotent`, `string_contents_are_untouched`, `a_file_that_does_not_lex_is_reported`, `a_byte_order_mark_survives_and_does_not_shift_the_source`, dan `a_blank_line_between_statements_is_kept`. Aturannya: satu baris kosong di sebelah kurung kurawal selalu dibuang karena tata letak baris brace ditentukan formatter, sedangkan baris kosong antar pernyataan biasa dipertahankan (`format.rs:112-119` dan `:125-131`). Karena itu template `cli/src/command/new.rs:7` tidak boleh memuat baris kosong di sebelah brace: `new` sekarang menulis persis apa yang akan ditulis `format` atas program yang sama, ditutup `the_scaffolded_project_is_already_formatted` di `tests/cli/main.rs`. |
 | LSP | **BELUM** | Tidak ada crate LSP, tidak ada JSON-RPC, tidak ada loop stdio, tidak ada completion, hover, rename, atau definition. `compiler/Cargo.toml:14` memiliki bagian `[dependencies]` yang kosong. |
-| debugger | **BELUM** | Tidak ada debugger maupun inspector. Satu-satunya yang berdekatan adalah `plt.bind(target, instance)` di `compiler/src/codegen/web/javascript.rs:978` (dipanggil lewat `plt.bind(target, instance)` di `:168`) yang menempelkan instance ke `target.__plt`, tanpa konsumen selain harness di `tests/web/`. |
+| debugger | **BELUM** | Tidak ada debugger maupun inspector. Satu-satunya yang berdekatan adalah `plt.bind(target, instance)` di `libraries/web/src/codegen/web/javascript.rs:978` (dipanggil lewat `plt.bind(target, instance)` di `:168`) yang menempelkan instance ke `target.__plt`, tanpa konsumen selain harness di `tests/web/`. |
 | hot reload | **SELESAI** | `dev` memantau lebih dari satu file: snapshot `(len, mtime)` per file (`Stamp` di `cli/src/command/dev.rs:102`, `Stamp::of()` di `:108`) diambil untuk entry dan semua dependensinya di `:86-93`, lalu `snapshots_change()` di `:65-69` dipanggil tiap `POLL` 50 ms (`:15`, `:59`). SSE di `:13`, `notify()` di `:142-149`, `subscribe()` di `:176-184`; client disuntik ke `index.html` di `:125-140`, bukan oleh compiler, sehingga build produksi tidak membawa kode dev. Dependensi datang dari `build::compile_entry` dan memuat entry plus semua modul `import` transitif, jadi mengedit file yang diimpor memicu rebuild. |
 | testing | **SEBAGIAN** | Permukaan bahasa dan runner ada. Lihat catatan berikut. |
 
@@ -535,21 +537,21 @@ meneruskan exit code-nya, sehingga program yang gagal membuat build tetap hijau.
 
 | Bagian | Bukti |
 | --- | --- |
-| emit runner | `tests::render()` di `compiler/src/codegen/web/tests.rs:12` dan `dom::render()` di `compiler/src/codegen/web/dom.rs:197` menghasilkan isi `tests.mjs` dan `dom.mjs`, yang diberi nama di `compiler/src/codegen/web/mod.rs:19-20`, sehingga runner tidak butuh dependensi luar |
-| manifest | `compiler/src/codegen/web/bundle.rs:5` menulis `module.tests`, sehingga `program.json` mencantumkan nama test dan action-nya |
-| validasi | `TEST_ACTIONS` di `compiler/src/semantic/events.rs:25`; action lain ditolak dengan `unknown-test-action` sebelum apa pun dijalankan (`compiler/src/semantic/checker.rs:220-239`) |
+| emit runner | `tests::render()` di `libraries/web/src/codegen/web/tests.rs:12` dan `dom::render()` di `libraries/web/src/codegen/web/dom.rs:197` menghasilkan isi `tests.mjs` dan `dom.mjs`, yang diberi nama di `libraries/web/src/codegen/web/mod.rs:19-20`, sehingga runner tidak butuh dependensi luar |
+| manifest | `libraries/web/src/codegen/web/bundle.rs:5` menulis `module.tests`, sehingga `program.json` mencantumkan nama test dan action-nya |
+| validasi | `TEST_ACTIONS` di `libraries/semantic/src/events.rs:25`; action lain ditolak dengan `unknown-test-action` sebelum apa pun dijalankan (`libraries/semantic/src/checker.rs:220-239`) |
 | CLI | `Command::Test` didispatch di `cli/src/command/mod.rs:66` ke `test::run()` di `cli/src/command/test.rs:12`, lalu menjalankan `tests.mjs` hasil generate melalui Node (`run_node()` di `:20`) dan meneruskan exit code-nya, sehingga program yang gagal membuat build tetap hijau. |
 | test | `fixtures/valid/counter-test.plt`, serta test di `tests/cli/main.rs` yang mencakup artifact, manifest, action tak dikenal, exit code, isolasi antar test, scaffold `new` yang lulus tesnya sendiri, `format`, dan `dev` |
 
 Setiap test di-mount ulang di atas target baru, sehingga satu test tidak
 mewarisi state test sebelumnya. Action `click` mencocokkan node pada teks yang
-dibaca orang (`compiler/src/codegen/web/tests.rs:118-122`) dan memilih match
+dibaca orang (`libraries/web/src/codegen/web/tests.rs:118-122`) dan memilih match
 terdalam, karena sebuah wrapper memiliki teks yang sama dengan isi di
 dalamnya. Expectation ditulis ulang lewat `scope_for()` yang diimpor di
-`compiler/src/codegen/web/tests.rs:9` dan dipakai di `:40`, lalu dieksekusi
+`libraries/web/src/codegen/web/tests.rs:9` dan dipakai di `:40`, lalu dieksekusi
 sebagai thunk, bukan lewat `eval`.
 
-Runner memakai `process.exitCode` di `compiler/src/codegen/web/tests.rs:111`,
+Runner memakai `process.exitCode` di `libraries/web/src/codegen/web/tests.rs:111`,
 bukan `process.exit`, supaya output tidak terpotong saat stdout berupa pipe.
 
 **`tests/web/` sekarang berjalan di dalam `cargo test`.** Kedelapan harness
@@ -565,14 +567,14 @@ Satu dari enam item berubah dari nol: **batching**.
 
 | Item PRD | Status | Bukti |
 | --- | --- | --- |
-| fine-grained rendering | **BELUM** | `refresh()` di `compiler/src/codegen/web/javascript.rs:1372-1396` memanggil `instance.render()` yang membangun ulang seluruh virtual tree komponen, lalu mendiff seluruhnya. Informasi dependensi terkumpul (`plt.computed()` di `:246`), tetapi tidak pernah dipakai untuk membatasi render ke subnode yang berubah. Flag `busy` (`:1379`) dan `pending` (`:1380`) adalah penjaga reentrancy dan antrean lanjutan, bukan dirty-tracking per subtree. |
-| batching | **SEBAGIAN** | Satu dispatch DOM adalah satu transaksi. `beginBatch()`/`endBatch()`/`transactional()` di `compiler/src/codegen/web/javascript.rs:194-224`, dirty set `dirtied` di `:192`, dan `refresh()` yang menunda render saat `batchDepth > 0` di `:1374-1378` lalu drain set sampai kosong di `:207-211`. Batasnya benar-benar per-dispatch karena seluruh callback pada satu event berbagi satu listener DOM di `subscribe()` (`:1079-1106`). Bukti eksekusi: `tests/web/ui.mjs` asserting bahwa satu `input` tidak menulis apa pun ke `contenteditable` yang sedang diketik. **Yang belum ada:** belum ada `queueMicrotask` atau `requestAnimationFrame` yang menggabungkan beberapa dispatch berbeda menjadi satu render, jadi dua `click` dalam satu tick masih dua render; dan `endBatch()` tetap sinkron, yang tidak apa-apa untuk runner tetapi tidak sesuai dengan coalescing berbasis frame. Sisi host `runtime/src/state.rs` masih memakai pola fan-out sinkron yang sama tanpa transaksi. |
-| virtualization | **BELUM** | `plt.each()` di `compiler/src/codegen/web/javascript.rs:885-893` melakukan `Array.from(list ?? [])` lalu `.map()`, yaitu mematerialisasi seluruh item tanpa windowing, tanpa `IntersectionObserver`, tanpa overscan. `page()` di `:728-736` memangkas daftar sebelum dirender, tetapi itu windowing yang diminta program, bukan virtualisasi transparan. |
-| code splitting | **BELUM** | `compiler/src/codegen/web/mod.rs:11-23` menghasilkan 6 artefak dengan nama tetap dari satu `IrModule`, dan `compiler/src/codegen/web/html.rs:15` menulis satu tag script. `module.imports` diturunkan di `compiler/src/ir/lower.rs` dan diverifikasi di `compiler/src/ir/verifier.rs`, tetapi tidak dibaca modul codegen mana pun: loader `import` (B7) bekerja di level AST, sebelum IR. |
-| tree shaking | **BELUM** | `render_component()` di `compiler/src/codegen/web/javascript.rs` menulis seluruh komponen ke objek global secara tanpa syarat, tanpa analisis keterjangkauan. |
-| production optimization | **BELUM** | Tidak ada jalur minify, release, atau produksi di mana pun. `compiler/src/codegen/web/html.rs:9` menulis meta viewport secara tanpa syarat tanpa pemisahan dev dan produksi. Satu-satunya konfigurasi optimasi di repository adalah `[profile.release]` di `Cargo.toml`, yang mengoptimasi binary compiler, bukan output yang dihasilkan. |
+| fine-grained rendering | **BELUM** | `refresh()` di `libraries/web/src/codegen/web/javascript.rs:1372-1396` memanggil `instance.render()` yang membangun ulang seluruh virtual tree komponen, lalu mendiff seluruhnya. Informasi dependensi terkumpul (`plt.computed()` di `:246`), tetapi tidak pernah dipakai untuk membatasi render ke subnode yang berubah. Flag `busy` (`:1379`) dan `pending` (`:1380`) adalah penjaga reentrancy dan antrean lanjutan, bukan dirty-tracking per subtree. |
+| batching | **SEBAGIAN** | Satu dispatch DOM adalah satu transaksi. `beginBatch()`/`endBatch()`/`transactional()` di `libraries/web/src/codegen/web/javascript.rs:194-224`, dirty set `dirtied` di `:192`, dan `refresh()` yang menunda render saat `batchDepth > 0` di `:1374-1378` lalu drain set sampai kosong di `:207-211`. Batasnya benar-benar per-dispatch karena seluruh callback pada satu event berbagi satu listener DOM di `subscribe()` (`:1079-1106`). Bukti eksekusi: `tests/web/ui.mjs` asserting bahwa satu `input` tidak menulis apa pun ke `contenteditable` yang sedang diketik. **Yang belum ada:** belum ada `queueMicrotask` atau `requestAnimationFrame` yang menggabungkan beberapa dispatch berbeda menjadi satu render, jadi dua `click` dalam satu tick masih dua render; dan `endBatch()` tetap sinkron, yang tidak apa-apa untuk runner tetapi tidak sesuai dengan coalescing berbasis frame. Sisi host `runtime/src/state.rs` masih memakai pola fan-out sinkron yang sama tanpa transaksi. |
+| virtualization | **BELUM** | `plt.each()` di `libraries/web/src/codegen/web/javascript.rs:885-893` melakukan `Array.from(list ?? [])` lalu `.map()`, yaitu mematerialisasi seluruh item tanpa windowing, tanpa `IntersectionObserver`, tanpa overscan. `page()` di `:728-736` memangkas daftar sebelum dirender, tetapi itu windowing yang diminta program, bukan virtualisasi transparan. |
+| code splitting | **BELUM** | `libraries/web/src/codegen/web/mod.rs:11-23` menghasilkan 6 artefak dengan nama tetap dari satu `IrModule`, dan `libraries/web/src/codegen/web/html.rs:15` menulis satu tag script. `module.imports` diturunkan di `libraries/ir/src/lower.rs` dan diverifikasi di `libraries/ir/src/verifier.rs`, tetapi tidak dibaca modul codegen mana pun: loader `import` (B7) bekerja di level AST, sebelum IR. |
+| tree shaking | **BELUM** | `render_component()` di `libraries/web/src/codegen/web/javascript.rs` menulis seluruh komponen ke objek global secara tanpa syarat, tanpa analisis keterjangkauan. |
+| production optimization | **BELUM** | Tidak ada jalur minify, release, atau produksi di mana pun. `libraries/web/src/codegen/web/html.rs:9` menulis meta viewport secara tanpa syarat tanpa pemisahan dev dan produksi. Satu-satunya konfigurasi optimasi di repository adalah `[profile.release]` di `Cargo.toml`, yang mengoptimasi binary compiler, bukan output yang dihasilkan. |
 
-Catatan: `compiler/src/codegen/web/bundle.rs` bukan bundler. Satu-satunya
+Catatan: `libraries/web/src/codegen/web/bundle.rs` bukan bundler. Satu-satunya
 fungsi publiknya, `manifest()`, menulis JSON metadata dengan pemformatan string.
 File tersebut tidak menggabungkan, tidak memampatkan.
 
@@ -606,9 +608,9 @@ antrean `pending`.
 ### B4 - `gap` dan `columns` jadi atribut HTML, bukan CSS
 
 **SELESAI.** Keduanya dipetakan ke kanal CSS.
-`compiler/src/semantic/element.rs:216-233` mendaftarkan 16 properti bersama
+`libraries/semantic/src/element.rs:216-233` mendaftarkan 16 properti bersama
 untuk 8 primitive layout, `PROPERTY_EXCEPTIONS` di
-`compiler/src/codegen/style/mod.rs:13-17` menamai `columns` sebagai
+`libraries/web/src/codegen/style/mod.rs:13-17` menamai `columns` sebagai
 `grid-template-columns`, dan `css_value()` di `:66-73` mengembangkannya jadi
 `repeat(3, minmax(0, 1fr))`. Panjang polos mendapat satuan `px`, dan class
 dipisah per instance element sehingga override tidak bleduh antar element.
@@ -621,7 +623,7 @@ merujuk tiga dokumen yang benar-benar ada, yaitu `docs/prd.md`,
 `docs/struktur.md`, dan `docs/roadmap.md`, dan ketiganya memang ada di
 `docs/`. Bagian Build Output juga sudah diganti dengan enam artefak yang
 memang dihasilkan (`README.md:68-74` cocok dengan
-`compiler/src/codegen/web/mod.rs:13-21`), bukan nama `bootstrap.js`,
+`libraries/web/src/codegen/web/mod.rs:13-21`), bukan nama `bootstrap.js`,
 `runtime.wasm`, dan `program.bin` seperti yang pernah diklaim.
 
 Yang tersisa hanyalah tiga dokumen yang tidak pernah ada dan sekarang tidak
@@ -675,8 +677,8 @@ Rantai loader ada di `compiler/src/loader.rs`:
 jadi mengedit file yang diimpor memicu rebuild.
 
 Path import kosong tetap ditangani verifier IR (`empty-import-path` di
-`compiler/src/ir/verifier.rs:61`), sehingga `fixtures/invalid/empty-import-path.plt`
-tetap lolos. `WarningKind::UnusedImport` di `compiler/src/diagnostics/warning.rs:8`
+`libraries/ir/src/verifier.rs:61`), sehingga `fixtures/invalid/empty-import-path.plt`
+tetap lolos. `WarningKind::UnusedImport` di `libraries/diagnostics/src/warning.rs:8`
 masih belum diinstansiasi: impor yang tidak pernah dipakai tidak diperingatkan.
 
 Bukti eksekusi pada audit ini:
@@ -697,7 +699,7 @@ error: semantic[import-not-found]: cannot find `./ui.plt` imported as `Card`
 ```
 
 Semantic checker memperingatkan `import` tanpa ekstensi `.plt` di
-`compiler/src/semantic/checker.rs:203-218` seperti sebelumnya, dan loader tetap
+`libraries/semantic/src/checker.rs:203-218` seperti sebelumnya, dan loader tetap
 memuat file itu; warnanya memang hanya konvensi, bukan larangan.
 
 ---
@@ -724,7 +726,7 @@ memuat file itu; warnanya memang hanya konvensi, bukan larangan.
       `cli/src/command/new.rs:7`, bukan di formatter, karena aturan formatter
       memang membuang baris kosong di sebelah brace; ditutup
       `the_scaffolded_project_is_already_formatted`
-- [x] Isi `fixtures/valid/` dan `fixtures/invalid/` — sekarang 2 file valid dan 19 file invalid
+- [x] Isi `fixtures/valid/` dan `fixtures/invalid/` â€” sekarang 2 file valid dan 19 file invalid
 - [x] Sambungkan `tests/web/*.mjs` ke target `[[test]]` agar pengujian perilaku berjalan di CI
 - [x] Tambahkan test yang menutup B1 sampai B4 dan B6
 - [x] Hapus `cli/dist/` dan artefak hasil build yang basi di `tests/web/`; sekarang `tests/web/` berisi 8 harness, `main.rs`, dan 6 fixture `.plt`
@@ -768,12 +770,12 @@ memuat file itu; warnanya memang hanya konvensi, bukan larangan.
 | --- | --- |
 | 281 test lulus | **305** lulus, 0 gagal. Snapshot sekarang: `codegen` 64, `cli` 31, unit test `platipus-compiler` 40. |
 | 5 harness web, 41 assertion | **8** harness, **68** check. `showcase.mjs` menguji aplikasi showcase beserta import dan interaksinya. |
-| Phase 7 **BELUM**, "tidak ada `getContext` di seluruh workspace" | Phase 7 **SEBAGIAN**. `getContext` ada di `compiler/src/codegen/web/dom.rs:175`, dan sepuluh builtin Phase 7 ada di `compiler/src/codegen/web/javascript.rs`. |
+| Phase 7 **BELUM**, "tidak ada `getContext` di seluruh workspace" | Phase 7 **SEBAGIAN**. `getContext` ada di `libraries/web/src/codegen/web/dom.rs:175`, dan sepuluh builtin Phase 7 ada di `libraries/web/src/codegen/web/javascript.rs`. |
 | Phase 9 "6 dari 6 item bernilai nol" | **1 dari 6** berubah: batching **SEBAGIAN**. |
 | "Flag `busy` adalah penjaga reentrancy, bukan batching" | Benar untuk `busy`, tetapi tidak lagi untuk fase: kini ada dirty set dan batas dispatch (lihat 4.10). |
 | `event object` = `{ value, key, position, ... }` | Sekarang juga `data`, untuk `on drop` (lihat 4.5). |
 | `applyEvents()` memasang satu listener per handler | Sekarang satu listener DOM per (event, fase), dipakai bersama oleh semua handler dan bind pada node itu (lihat 4.5). |
-| warning `clippy::module_inception` di `compiler/src/codegen/web/tests.rs` | Ditutup; clippy bersih total. |
+| warning `clippy::module_inception` di `libraries/web/src/codegen/web/tests.rs` | Ditutup; clippy bersih total. |
 | `cli/dist/` dibuat ulang oleh `cargo test` | Ditutup; test memakai `-o` ke direktori scratch. |
 | `platipus new` menulis template belum terformat | Ditutup; template dan hasil `format` identik. |
 | Direktori `docs/` hanya berisi tiga dokumen | Tetap benar (`prd.md`, `struktur.md`, `roadmap.md`). |
@@ -785,12 +787,12 @@ Keduanya sudah basi. `README.md:120-129` kini menyebut keduanya sebagai yang
 sudah bekerja, dan menggantinya dengan kekurangan yang memang masih ada, yaitu
 type checking, LSP, debugger, fine-grained rendering, dan output produksi.
 
-Semua `path:line` ke `compiler/src/codegen/web/javascript.rs` dihitung ulang
+Semua `path:line` ke `libraries/web/src/codegen/web/javascript.rs` dihitung ulang
 karena file itu tumbuh sekitar 150 baris. Yang tidak dihitung ulang dan masih
 mewarisi nomor baris versi sebelumnya adalah referensi ke
-`compiler/src/parser/`, `compiler/src/semantic/`, `compiler/src/ir/`,
-`compiler/src/ast/`, `compiler/src/diagnostics/`, `cli/`, `tests/`, dan
-`standard/`: file-file itu tidak disentuh revisi ini. `compiler/src/semantic/element.rs`
+`libraries/language/src/parser/`, `libraries/semantic/src/`, `libraries/ir/src/`,
+`libraries/language/src/ast/`, `libraries/diagnostics/src/`, `cli/`, `tests/`, dan
+`standard/`: file-file itu tidak disentuh revisi ini. `libraries/semantic/src/element.rs`
 juga tidak disentuh, kecuali dicatat bila berbeda.
 
 ### 7.1 README diverifikasi ulang pada 2026-09-28
@@ -802,7 +804,7 @@ perbaikannya:
 | Klaim lama | Kenyataan sekarang |
 | --- | --- |
 | README menyebut 7 command; ada 6 | Salah hitung di kedua arah. `cli/src/command/mod.rs:17-27` punya **9** command, yaitu `new`, `build`, `check`, `run`, `test`, `dev`, `format`, `help`, dan `version`. `README.md:93-101` mendokumentasikan 7 yang utama; `help` dan `version` memang absen dari daftar itu, dan itu tidak salah karena keduanya sudah tercakup di `README.md:104-105`. |
-| README menyebut output `bootstrap.js`, `runtime.wasm`, `program.bin` | Benar. `compiler/src/codegen/web/mod.rs:13-21` menghasilkan `index.html`, `app.css`, `app.js`, `dom.mjs`, `tests.mjs`, `program.json`, persis seperti pohon di `README.md:68-74`. Tidak ada target WASM. |
+| README menyebut output `bootstrap.js`, `runtime.wasm`, `program.bin` | Benar. `libraries/web/src/codegen/web/mod.rs:13-21` menghasilkan `index.html`, `app.css`, `app.js`, `dom.mjs`, `tests.mjs`, `program.json`, persis seperti pohon di `README.md:68-74`. Tidak ada target WASM. |
 | README/runtime bertanggung jawab atas Element, State, Event, Reactive, Style, Layout, Render, Browser | Benar. `runtime/src/` berisi 4 file datar tanpa kode DOM, HTTP, maupun browser, dan `README.md:59-63` sekarang menyatakan itu secara eksplisit. |
 | README merujuk 4 dokumen | Benar. `README.md:110-116` hanya merujuk tiga dokumen yang ada. |
 
@@ -817,11 +819,11 @@ ini. Deviasi yang terverifikasi:
 * `runtime/src/` dideskripsikan dengan 8 direktori anak di
   `docs/struktur.md:62-70`, sedangkan realitasnya 4 file datar, yaitu
   `lib.rs`, `state.rs`, `derived.rs`, dan `event.rs`;
-* `compiler/src/codegen/` memang 7 direktori di `docs/struktur.md:304-310`,
+* `libraries/web/src/codegen/` memang 7 direktori di `docs/struktur.md:304-310`,
   dan itu cocok, tetapi setiap direktori hanya punya satu `mod.rs`, kecuali
   `web/` yang punya 7 file. Pola "satu modul per fitur" yang tidak ada di
   mana pun;
-* `compiler/src/semantic/` dideskripsikan berbeda di `docs/struktur.md:280-290`:
+* `libraries/semantic/src/` dideskripsikan berbeda di `docs/struktur.md:280-290`:
   6 file yang disebut tidak ada, yaitu `symbol.rs`, `type_check.rs`,
   `component.rs`, `state.rs`, `expression.rs`, dan `diagnostics.rs`, sementara
   4 file yang ada tidak disebut, yaitu `checker.rs`, `events.rs`,
@@ -836,7 +838,7 @@ ini. Deviasi yang terverifikasi:
 * `tests/` disebut berisi 12 subdirektori di `docs/struktur.md:156-168`,
   sedangkan realitasnya 9 file `main.rs` datar.
 
-Satu bagian justru cocok persis: `compiler/src/diagnostics/` di
+Satu bagian justru cocok persis: `libraries/diagnostics/src/` di
 `docs/struktur.md:312-316` menyebut 4 file, dan memang ada 4.
 
 Deviasi yang tercatat versi dokumen sebelumnya sudah tidak berlaku lagi:
@@ -856,7 +858,7 @@ penyebabnya bukan build manual:
 * Klaim lama bahwa `cli/dist/app.js` masih memakai
   `for (const vnode of newList)` sudah basi. Artefak itu sudah memakai iterasi
   mundur `for (let index = newList.length - 1; ...)` di baris 161, sama dengan
-  `patchList()` di `compiler/src/codegen/web/javascript.rs:920`.
+  `patchList()` di `libraries/web/src/codegen/web/javascript.rs:920`.
 * Klaim bahwa `cli/dist/` "ikut ter-commit" tidak dapat dipertahankan.
 * **`cli/dist/` dibuat ulang oleh `cargo test` sendiri.** Penyebabnya
   `quiet_mode_prints_nothing_on_success` di `tests/cli/main.rs`. Helper `run()`
@@ -887,10 +889,10 @@ artefak `cargo test`.
 * **`cargo clippy --workspace --all-targets` sekarang benar-benar bersih**, nol
   error dan nol warning. Warning `clippy::module_inception` yang tercatat di
   versi dokumen sebelumnya sudah ditutup: `mod tests` di dalam
-  `compiler/src/codegen/web/tests.rs` dihapus, dan test-nya dipindah ke level
+  `libraries/web/src/codegen/web/tests.rs` dihapus, dan test-nya dipindah ke level
   modul itu sendiri dengan `#[cfg(test)]` pada helper `render_source`, karena
   `render()` di `:12` adalah kode produksi yang tetap harus dikompilasi di luar
-  test. `mod tests` di `compiler/src/codegen/web/dom.rs` tetap ada dan tidak
+  test. `mod tests` di `libraries/web/src/codegen/web/dom.rs` tetap ada dan tidak
   warned, karena ia berada di dalam modul `dom`, bukan `tests`;
 * **`cargo fmt --all --check` tidak bersih, dan itu kondisi lama.** 57 diff
   spread across 19 file, semuanya di `cli/`, `runtime/`, `standard/`, dan
@@ -969,9 +971,9 @@ yang dipakai:
 3. **Periksa klaim negatif**, yaitu item bernilai nol. Klaim ini paling mudah
    menjadi salah karena ketiadaan sulit dilihat mata. Scan negatif untuk Phase 6
    sudah tidak berlaku sejak `fetch\s*\(|WebSocket` benar-benar ada di
-   `compiler/src/codegen/web/javascript.rs`; scan untuk Phase 7 juga sudah tidak
+   `libraries/web/src/codegen/web/javascript.rs`; scan untuk Phase 7 juga sudah tidak
    berlaku, karena `getContext` dan `requestAnimationFrame` kini ada di shim
-   `compiler/src/codegen/web/dom.rs:175` dan `:282`. Scan yang masih berlaku
+   `libraries/web/src/codegen/web/dom.rs:175` dan `:282`. Scan yang masih berlaku
    hanya untuk sisa yang memang nol:
 
    ```powershell
@@ -981,7 +983,7 @@ yang dipakai:
    ```
 
    Audit terakhir: nol hasil untuk keempat marker itu. `globalThis.innerWidth`
-   di `compiler/src/codegen/web/dom.rs:271` tetap konstanta stub yang tidak
+   di `libraries/web/src/codegen/web/dom.rs:271` tetap konstanta stub yang tidak
    mengukur apa pun.
 
 4. **Hitung klaim angka**, jangan percaya angka yang sudah tertulis di
@@ -1011,7 +1013,7 @@ yang dipakai:
    `catalog_covers_the_documented_builtin_surface` di `tests/semantic/main.rs`.
    Enam belas properti bersama untuk elemen berbox (kategori layout plus
    `BOX_ELEMENTS`) berasal dari `LAYOUT_PROPERTIES` di
-   `compiler/src/semantic/element.rs:277-294`; nama yang sama (misalnya `width`
+   `libraries/semantic/src/element.rs:277-294`; nama yang sama (misalnya `width`
    pada `Canvas`) tidak dihitung dua kali oleh guard karena ia mengumpulkan ke
    `BTreeSet`.
 
@@ -1043,7 +1045,7 @@ yang dipakai:
 
 7. **Periksa klaim README** setiap kali README berubah, karena bagian Build
    Output dan bagian CLI paling cepat menjadi basi. Bandingkan dengan
-   `compiler/src/codegen/web/mod.rs:13-21` dan `cli/src/command/mod.rs:17-27`.
+   `libraries/web/src/codegen/web/mod.rs:13-21` dan `cli/src/command/mod.rs:17-27`.
 
 8. **Uji binary yang benar-benar didistribusikan.** `cargo test` memakai
    binary debug dan tidak menyentuh jalur `dev`. Audit terakhir memakai

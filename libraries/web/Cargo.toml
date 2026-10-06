@@ -1,0 +1,19 @@
+[package]
+name = "platipus-web"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Web backend for Platipus: HTML, CSS, and JavaScript generation"
+
+[lib]
+name = "platipus_web"
+path = "src/lib.rs"
+
+[dependencies]
+platipus-diagnostics = { workspace = true }
+platipus-ir = { workspace = true }
+platipus-language = { workspace = true }
+platipus-semantic = { workspace = true }
+platipus-testing = { workspace = true }

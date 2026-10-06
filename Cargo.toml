@@ -3,7 +3,16 @@ members = [
     "compiler",
     "runtime",
     "cli",
-    "standard"
+    "standard",
+    "p2lt",
+    "libraries/diagnostics",
+    "libraries/language",
+    "libraries/ir",
+    "libraries/semantic",
+    "libraries/web",
+    "libraries/reactive",
+    "libraries/storage",
+    "libraries/testing"
 ]
 resolver = "3"
 
@@ -16,6 +25,14 @@ repository = "https://github.com/platipus-lang/platipus"
 description = "Platipus — a UI Application Programming Language for the modern web"
 
 [workspace.dependencies]
+platipus-diagnostics = { path = "libraries/diagnostics", version = "0.1.0" }
+platipus-language = { path = "libraries/language", version = "0.1.0" }
+platipus-ir = { path = "libraries/ir", version = "0.1.0" }
+platipus-semantic = { path = "libraries/semantic", version = "0.1.0" }
+platipus-reactive = { path = "libraries/reactive", version = "0.1.0" }
+platipus-storage = { path = "libraries/storage", version = "0.1.0" }
+platipus-testing = { path = "libraries/testing", version = "0.1.0" }
+platipus-web = { path = "libraries/web", version = "0.1.0" }
 platipus-compiler = { path = "compiler", version = "0.1.0" }
 platipus-runtime = { path = "runtime", version = "0.1.0" }
 platipus-standard = { path = "standard", version = "0.1.0" }
