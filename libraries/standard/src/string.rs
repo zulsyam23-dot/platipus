@@ -1,4 +1,4 @@
-use platipus_runtime::state::Value;
+use platipus_reactive::state::Value;
 
 /// Case and search operations over text values.
 pub struct StringOps;

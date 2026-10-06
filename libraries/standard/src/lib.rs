@@ -1,10 +1,14 @@
-﻿//! The Platipus standard library.
+//! The Platipus standard library.
 //!
 //! The standard library is the set of built-in helpers a program can use
 //! without importing anything. Helpers are grouped by the concept they serve,
 //! mirroring the way the language keeps a single concept per name.
 
 pub mod collection;
+pub mod list;
+pub mod map;
+pub mod math;
+pub mod parse;
 pub mod string;
 pub mod text;
 
@@ -12,7 +16,7 @@ pub use collection::Collection;
 pub use string::{StringOps, trim};
 pub use text::{format, join, pad_end, pad_start, repeat};
 
-use platipus_runtime::state::Value;
+use platipus_reactive::state::Value;
 
 /// A built-in helper, with the number of arguments it takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +50,29 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin::new("join", 2),
     Builtin::new("padStart", 2),
     Builtin::new("padEnd", 2),
+    Builtin::new("abs", 1),
+    Builtin::new("min", 2),
+    Builtin::new("max", 2),
+    Builtin::new("clamp", 3),
+    Builtin::new("floor", 1),
+    Builtin::new("ceil", 1),
+    Builtin::new("round", 1),
+    Builtin::new("sqrt", 1),
+    Builtin::new("pow", 2),
+    Builtin::new("first", 1),
+    Builtin::new("last", 1),
+    Builtin::new("take", 2),
+    Builtin::new("drop", 2),
+    Builtin::new("reverse", 1),
+    Builtin::new("unique", 1),
+    Builtin::new("keys", 1),
+    Builtin::new("values", 1),
+    Builtin::new("has", 2),
+    Builtin::new("get", 2),
+    Builtin::new("merge", 2),
+    Builtin::new("parseInt", 1),
+    Builtin::new("parseFloat", 1),
+    Builtin::new("toText", 1),
 ];
 
 /// Looks a built-in up by name.
@@ -90,6 +117,29 @@ pub fn call(name: &str, arguments: &[Value]) -> Option<Value> {
             &value,
             arguments.get(1)?.as_int()?,
         ))),
+        "abs" => math::abs(&value),
+        "min" => math::min(&value, arguments.get(1)?),
+        "max" => math::max(&value, arguments.get(1)?),
+        "clamp" => math::clamp(&value, arguments.get(1)?, arguments.get(2)?),
+        "floor" => math::floor(&value),
+        "ceil" => math::ceil(&value),
+        "round" => math::round(&value),
+        "sqrt" => math::sqrt(&value),
+        "pow" => math::pow(&value, arguments.get(1)?),
+        "first" => list::first(&value),
+        "last" => list::last(&value),
+        "take" => list::take(&value, arguments.get(1)?.as_int()?),
+        "drop" => list::drop(&value, arguments.get(1)?.as_int()?),
+        "reverse" => list::reverse(&value),
+        "unique" => list::unique(&value),
+        "keys" => map::keys(&value),
+        "values" => map::values(&value),
+        "has" => map::has(&value, arguments.get(1)?),
+        "get" => map::get(&value, arguments.get(1)?),
+        "merge" => map::merge(&value, arguments.get(1)?),
+        "parseInt" => parse::parse_int(&value),
+        "parseFloat" => parse::parse_float(&value),
+        "toText" => Some(parse::to_text(&value)),
         _ => None,
     }
 }

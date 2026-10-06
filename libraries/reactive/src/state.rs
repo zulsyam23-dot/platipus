@@ -20,8 +20,20 @@ impl Value {
         Value::Int(value)
     }
 
+    pub fn float(value: f64) -> Self {
+        Value::Float(value)
+    }
+
     pub fn text(value: impl Into<String>) -> Self {
         Value::Text(value.into())
+    }
+
+    pub fn as_float(&self) -> Option<f64> {
+        match self {
+            Value::Float(value) => Some(*value),
+            Value::Int(value) => Some(*value as f64),
+            _ => None,
+        }
     }
 
     pub fn as_int(&self) -> Option<i64> {

@@ -28,7 +28,7 @@ domain libraries own the model.
 | `platipus-web` | The whole web backend in `codegen/`: `Web`/`WebTarget`, HTML, CSS, JS runtime, DOM shim, embedded test runner, bundle manifest | IR internals, semantic rules |
 | `platipus-compiler` | `pipeline` (source → AST → semantic → IR → verify → target), `loader` (import graph), `rust` stage (Cargo build of `#[rust]` blocks) | Domain logic |
 | `platipus-runtime` | Facade re-exporting `platipus-reactive` | New code |
-| `platipus-standard` | Optional stdlib helpers on top of `Value` | Core concepts |
+| `platipus-standard` | Optional stdlib helpers on top of `Value` (collection, string, text, math, list, map, parse) | Core concepts |
 | `platipus-cli` | `platipus` / `plt` commands | Compilation logic (delegates to compiler) |
 | `platipus-p2lt` | Package manager | Compiler phases |
 

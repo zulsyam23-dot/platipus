@@ -71,7 +71,7 @@ dependencies = [
 name = "platipus-standard"
 version = "0.1.0"
 dependencies = [
- "platipus-runtime",
+ "platipus-reactive",
 ]
 
 [[package]]

@@ -1,4 +1,4 @@
-use platipus_runtime::state::Value;
+use platipus_reactive::state::Value;
 
 /// Operations over the built-in collection kinds.
 pub trait Collection {

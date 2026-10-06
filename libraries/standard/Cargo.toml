@@ -12,4 +12,4 @@ name = "platipus_standard"
 path = "src/lib.rs"
 
 [dependencies]
-platipus-runtime = { workspace = true }
+platipus-reactive = { workspace = true }

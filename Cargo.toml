@@ -3,7 +3,7 @@ members = [
     "compiler",
     "runtime",
     "cli",
-    "standard",
+    "libraries/standard",
     "p2lt",
     "libraries/diagnostics",
     "libraries/language",
@@ -35,7 +35,7 @@ platipus-testing = { path = "libraries/testing", version = "0.1.0" }
 platipus-web = { path = "libraries/web", version = "0.1.0" }
 platipus-compiler = { path = "compiler", version = "0.1.0" }
 platipus-runtime = { path = "runtime", version = "0.1.0" }
-platipus-standard = { path = "standard", version = "0.1.0" }
+platipus-standard = { path = "libraries/standard", version = "0.1.0" }
 
 [profile.release]
 opt-level = "z"
