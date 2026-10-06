@@ -369,7 +369,12 @@ app Main {
     );
     let app = component(&module, "Main");
     let run = &app.functions[0];
-    let StatementKind::Try { body, handler } = &run.body[0].kind else {
+    let StatementKind::Try {
+        binding: _,
+        body,
+        handler,
+    } = &run.body[0].kind
+    else {
         panic!("expected try, got {:?}", run.body[0].kind);
     };
     assert_eq!(body.len(), 1);
@@ -494,6 +499,26 @@ app Main {
 "##,
     );
     let errors = verify(&module).expect_err("input assignment must not verify");
+    assert!(
+        errors.iter().any(|error| error.code == "not-assignable"),
+        "got {errors:?}"
+    );
+}
+
+#[test]
+fn the_verifier_does_not_allow_assigning_another_functions_parameter() {
+    let module = build(
+        r##"
+app Main {
+    fn first() {
+        other = 1
+    }
+    fn second(other: Int) { }
+    Column { }
+}
+"##,
+    );
+    let errors = verify(&module).expect_err("a parameter is writable only in its own function");
     assert!(
         errors.iter().any(|error| error.code == "not-assignable"),
         "got {errors:?}"

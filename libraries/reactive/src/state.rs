@@ -4,7 +4,7 @@ use std::fmt;
 use crate::StateKind;
 
 /// A run time value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Null,
     Bool(bool),
@@ -14,6 +14,26 @@ pub enum Value {
     List(Vec<Value>),
     Map(BTreeMap<String, Value>),
 }
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Null, Value::Null) => true,
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            (Value::Int(a), Value::Int(b)) => a == b,
+            // Match Object.is: all NaNs compare equal, while signed zeroes do not.
+            (Value::Float(a), Value::Float(b)) => {
+                a.to_bits() == b.to_bits() || (a.is_nan() && b.is_nan())
+            }
+            (Value::Text(a), Value::Text(b)) => a == b,
+            (Value::List(a), Value::List(b)) => a == b,
+            (Value::Map(a), Value::Map(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Value {}
 
 impl Value {
     pub fn int(value: i64) -> Self {
@@ -154,11 +174,7 @@ impl StateStore {
 
     pub fn declare(&mut self, scope: Scope, name: &str, initial: Value) {
         let restored = match scope {
-            Scope::Persistent => self
-                .persistent
-                .get(name)
-                .cloned()
-                .unwrap_or(initial),
+            Scope::Persistent => self.persistent.get(name).cloned().unwrap_or(initial),
             _ => initial,
         };
         self.cells.insert(
@@ -172,7 +188,9 @@ impl StateStore {
     }
 
     pub fn get(&self, scope: Scope, name: &str) -> Option<&Value> {
-        self.cells.get(&(scope, name.to_string())).map(|cell| &cell.value)
+        self.cells
+            .get(&(scope, name.to_string()))
+            .map(|cell| &cell.value)
     }
 
     /// Writes a value and notifies subscribers when it actually changed.
@@ -296,7 +314,10 @@ mod tests {
         let mut next = StateStore::new();
         next.restore_from(&store);
         next.declare(Scope::Persistent, "token", Value::text("a"));
-        assert_eq!(next.get(Scope::Persistent, "token"), Some(&Value::text("b")));
+        assert_eq!(
+            next.get(Scope::Persistent, "token"),
+            Some(&Value::text("b"))
+        );
     }
 
     #[test]
@@ -316,5 +337,14 @@ mod tests {
         assert!(Value::text("x").truthy());
         assert!(!Value::int(0).truthy());
         assert!(Value::int(1).truthy());
+    }
+
+    #[test]
+    fn float_equality_matches_object_is() {
+        assert_eq!(
+            Value::float(f64::NAN),
+            Value::float(f64::from_bits(0x7ff8_0000_0000_0001))
+        );
+        assert_ne!(Value::float(0.0), Value::float(-0.0));
     }
 }

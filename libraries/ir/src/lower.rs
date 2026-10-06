@@ -501,6 +501,7 @@ impl<'a> Lowering<'a> {
             Statement::Break(_) => StatementKind::Break,
             Statement::Continue(_) => StatementKind::Continue,
             Statement::Try(statement) => StatementKind::Try {
+                binding: statement.binding.as_ref().map(|b| b.name.as_str().to_string()),
                 body: statement
                     .body
                     .statements
@@ -555,7 +556,7 @@ pub fn lower_expression(expression: &Expression) -> String {
     match expression {
         Expression::IntLiteral(value, _) => value.to_string(),
         Expression::FloatLiteral(value, _) => format_float(*value),
-        Expression::StringLiteral(value, _) => format!("{value:?}"),
+        Expression::StringLiteral(value, _) => js_string_literal(value),
         Expression::BoolLiteral(value, _) => value.to_string(),
         Expression::NullLiteral(_) => "null".into(),
         Expression::Identifier(identifier) => identifier.name.clone(),
@@ -744,6 +745,37 @@ fn format_float(value: f64) -> String {
     } else {
         value.to_string()
     }
+}
+
+/// JS/JSON-compatible string literal escaping: Rust's `{:?}` cannot be used
+/// because it escapes astral characters as `\u{...}` rather than surrogate
+/// pairs.
+fn js_string_literal(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x7f => out.push(c),
+            c => {
+                let code = c as u32;
+                if code <= 0xFFFF {
+                    out.push_str(&format!("\\u{:04x}", code));
+                } else {
+                    let hi = 0xD800 + ((code - 0x10000) >> 10);
+                    let lo = 0xDC00 + ((code - 0x10000) & 0x3FF);
+                    out.push_str(&format!("\\u{:04x}\\u{:04x}", hi, lo));
+                }
+            }
+        }
+    }
+    out.push('"');
+    out
 }
 
 fn unary_op(op: UnaryOp) -> &'static str {

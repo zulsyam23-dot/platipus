@@ -1,10 +1,12 @@
 use platipus_ir::{IrModule, IrTestStep};
 
+use crate::codegen::expression::js_string;
+
 /// Serialisable description of the compiled program, used by tooling and
 /// the runtime loader.
 pub fn manifest(module: &IrModule) -> String {
     let mut out = String::from("{\n");
-    out.push_str(&format!("  \"name\": {:?},\n", module.name));
+    out.push_str(&format!("  \"name\": {},\n", js_string(&module.name)));
     out.push_str(&format!(
         "  \"components\": [{}],\n",
         names(
@@ -34,18 +36,22 @@ pub fn manifest(module: &IrModule) -> String {
                     .map(|step| match step {
                         IrTestStep::Action { name, argument, .. } => match argument {
                             Some(argument) => {
-                                format!("{{ \"action\": {name:?}, \"argument\": {argument:?} }}")
+                                format!(
+                                    "{{ \"action\": {}, \"argument\": {} }}",
+                                    js_string(name),
+                                    js_string(argument)
+                                )
                             }
-                            None => format!("{{ \"action\": {name:?} }}"),
+                            None => format!("{{ \"action\": {} }}", js_string(name)),
                         },
                         IrTestStep::Expect { expression, .. } => {
-                            format!("{{ \"expect\": {expression:?} }}")
+                            format!("{{ \"expect\": {} }}", js_string(expression))
                         }
                     })
                     .collect();
                 format!(
-                    "    {{ \"name\": {:?}, \"steps\": [{}] }}",
-                    test.name,
+                    "    {{ \"name\": {}, \"steps\": [{}] }}",
+                    js_string(&test.name),
                     steps.join(", ")
                 )
             })
@@ -60,11 +66,11 @@ pub fn manifest(module: &IrModule) -> String {
         .flat_map(|api| {
             api.routes.iter().map(move |route| {
                 format!(
-                    "{{ \"api\": {:?}, \"name\": {:?}, \"method\": {:?}, \"path\": {:?} }}",
-                    api.name,
-                    route.name,
-                    route.method.as_str(),
-                    route.path
+                    "{{ \"api\": {}, \"name\": {}, \"method\": {}, \"path\": {} }}",
+                    js_string(&api.name),
+                    js_string(&route.name),
+                    js_string(route.method.as_str()),
+                    js_string(&route.path)
                 )
             })
         })
@@ -84,7 +90,7 @@ pub fn manifest(module: &IrModule) -> String {
 fn names(items: &[&String]) -> String {
     items
         .iter()
-        .map(|name| format!("{name:?}"))
+        .map(|name| js_string(name))
         .collect::<Vec<_>>()
         .join(", ")
 }

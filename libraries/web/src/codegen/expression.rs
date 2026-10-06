@@ -47,7 +47,38 @@ pub fn member_access(object: &str, name: &str) -> String {
     if valid {
         return format!("{object}.{name}");
     }
-    format!("{object}[{name:?}]")
+    format!("{object}[{}]", js_string(name))
+}
+
+/// A JS/JSON string literal. Rust's `{:?}` escaping is not JSON-compatible
+/// for astral-plane characters (`\u{1F600}` vs surrogate pairs), so name and
+/// path strings cross into generated code through here.
+pub fn js_string(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x7f => out.push(c),
+            c => {
+                let code = c as u32;
+                if code <= 0xFFFF {
+                    out.push_str(&format!("\\u{:04x}", code));
+                } else {
+                    let hi = 0xD800 + ((code - 0x10000) >> 10);
+                    let lo = 0xDC00 + ((code - 0x10000) & 0x3FF);
+                    out.push_str(&format!("\\u{:04x}\\u{:04x}", hi, lo));
+                }
+            }
+        }
+    }
+    out.push('"');
+    out
 }
 
 pub fn is_identifier_start(ch: char) -> bool {
@@ -88,8 +119,9 @@ pub fn rewrite(source: &str, scope: &Scope) -> String {
             }
             let word: String = bytes[start..index].iter().collect();
             let member = preceded_by_member(&bytes, start);
+            let object_key = followed_by_colon(&bytes, index);
             match scope.access(&word) {
-                Some(access) if !member => out.push_str(access),
+                Some(access) if !member && !object_key => out.push_str(access),
                 _ => out.push_str(&word),
             }
             continue;
@@ -98,6 +130,15 @@ pub fn rewrite(source: &str, scope: &Scope) -> String {
         index += 1;
     }
     out
+}
+
+// A word that is followed by `:` (but not `::` or `:=` or `:` of a ternary
+// in expression position) is an object-literal key, not a value reference.
+fn followed_by_colon(source: &[char], mut index: usize) -> bool {
+    while index < source.len() && source[index].is_whitespace() {
+        index += 1;
+    }
+    index < source.len() && source[index] == ':' && source.get(index + 1) != Some(&':') && source.get(index + 1) != Some(&'=')
 }
 
 fn preceded_by_member(source: &[char], start: usize) -> bool {

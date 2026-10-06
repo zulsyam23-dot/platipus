@@ -64,6 +64,7 @@ version = "0.1.0"
 dependencies = [
  "platipus-diagnostics",
  "platipus-language",
+ "platipus-standard",
  "platipus-testing",
 ]
 
@@ -93,5 +94,6 @@ dependencies = [
  "platipus-ir",
  "platipus-language",
  "platipus-semantic",
+ "platipus-standard",
  "platipus-testing",
 ]

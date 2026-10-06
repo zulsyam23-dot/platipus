@@ -5,7 +5,7 @@
 //! shim, then walks each test's steps, so `click` acts on a node the way a person
 //! would and `expect` reads the program's own state.
 
-use crate::codegen::expression::rewrite;
+use crate::codegen::expression::{js_string, rewrite};
 use crate::codegen::state::scope_for;
 use platipus_ir::{IrModule, IrTest, IrTestStep};
 
@@ -52,7 +52,7 @@ pub fn render(module: &IrModule) -> String {
 
 fn render_test(out: &mut String, test: &IrTest, scope: Option<&crate::codegen::expression::Scope>) {
     out.push_str("  {\n");
-    out.push_str(&format!("    name: {:?},\n", test.name));
+    out.push_str(&format!("    name: {},\n", js_string(&test.name)));
     out.push_str("    steps: [\n");
     for step in &test.steps {
         match step {
@@ -61,7 +61,10 @@ fn render_test(out: &mut String, test: &IrTest, scope: Option<&crate::codegen::e
                 // inlined: a step the runner does not know is a build error. The
                 // argument is already an expression in source form, so it is
                 // written as it stands.
-                out.push_str(&format!("      {{ kind: \"action\", name: {name:?}"));
+                out.push_str(&format!(
+                    "      {{ kind: \"action\", name: {}",
+                    js_string(name)
+                ));
                 if let Some(argument) = argument {
                     out.push_str(&format!(", argument: {argument}"));
                 }
@@ -75,7 +78,8 @@ fn render_test(out: &mut String, test: &IrTest, scope: Option<&crate::codegen::e
                 // The check is emitted as a thunk rather than evaluated as text,
                 // so the runner never hands program text to `eval`.
                 out.push_str(&format!(
-                    "      {{ kind: \"expect\", check: () => ({rewritten}), source: {expression:?} }},\n"
+                    "      {{ kind: \"expect\", check: () => ({rewritten}), source: {} }},\n",
+                    js_string(expression)
                 ));
             }
         }
@@ -207,6 +211,18 @@ expect count == 1
 fn a_program_without_tests_still_produces_a_runner() {
     let runner = render_source("app Main { Text \"x\" }");
     assert!(runner.contains("no tests declared"), "{runner}");
+}
+
+#[test]
+fn the_runner_emits_a_line_break_after_each_test_name() {
+    let runner = render_source(
+        r#"
+app Main { Text "x" }
+test sample { expect true }
+"#,
+    );
+    assert!(runner.contains("name: \"sample\",\n    steps:"), "{runner}");
+    assert!(!runner.contains("\\n    steps:"), "{runner}");
 }
 
 /// Compiles a program and returns the test runner for it.

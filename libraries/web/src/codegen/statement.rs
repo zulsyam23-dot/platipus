@@ -62,11 +62,26 @@ fn render_kind(kind: &StatementKind, scope: &Scope) -> String {
         },
         StatementKind::Break => "break".to_string(),
         StatementKind::Continue => "continue".to_string(),
-        StatementKind::Try { body, handler } => {
+        StatementKind::Try {
+            binding,
+            body,
+            handler,
+        } => {
+            let catch_var = binding
+                .as_deref()
+                .map(local_access)
+                .unwrap_or_else(|| "t".to_string());
+            let mut inner = scope.clone();
+            // The catch binding names the thrown value inside the handler; the
+            // generated JavaScript has to bind it too.
+            if let Some(name) = binding {
+                inner.bind(name, &catch_var);
+            }
             format!(
-                "try {{ {} }} catch (t) {{ {} }}",
+                "try {{ {} }} catch ({}) {{ {} }}",
                 block(body, scope),
-                block(handler, scope)
+                catch_var,
+                block(handler, &inner)
             )
         }
         StatementKind::Emit { event, payload } => {
@@ -111,10 +126,7 @@ fn is_custom_name(event: &str) -> bool {
 }
 
 fn access_for(target: &str, scope: &Scope) -> String {
-    match scope.access(target) {
-        Some(access) => access.to_string(),
-        None => local_access(target),
-    }
+    rewrite(target, scope)
 }
 
 pub fn render_function(function: &IrFunction, scope: &Scope) -> String {
@@ -196,7 +208,8 @@ pub fn state_slot(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::declare_inputs;
+    use super::{access_for, declare_inputs};
+    use crate::codegen::expression::Scope;
     use platipus_ir::IrInput;
 
     fn input(name: &str, default: Option<&str>) -> IrInput {
@@ -242,5 +255,16 @@ mod tests {
         // even when the component declares no inputs.
         assert_eq!(declare_inputs(&[]), "  const inputDefaults = {};\n");
     }
-}
 
+    #[test]
+    fn assignment_targets_rewrite_names_inside_indices() {
+        let mut scope = Scope::new();
+        scope.bind("items", "s.items.value");
+        scope.bind("index", "s.index.value");
+
+        assert_eq!(
+            access_for("items[index]", &scope),
+            "s.items.value[s.index.value]"
+        );
+    }
+}

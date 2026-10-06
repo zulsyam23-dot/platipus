@@ -89,23 +89,41 @@ impl DerivedSet {
     }
 
     /// Recomputes every derived value that was never computed before, plus
-    /// every value whose dependencies changed.
+    /// every value whose dependencies changed. A derived value that depends
+    /// on another derived value is refreshed in the same call: changed names
+    /// feed a fixpoint loop so chains settle in one pass. Cycles are bounded
+    /// by a maximum number of sweeps (one beyond the entry count) rather than
+    /// looping forever.
     pub fn refresh(&mut self, store: &StateStore, changed: &[String]) -> Vec<String> {
-        let mut refreshed = Vec::new();
-        for entry in &mut self.entries {
-            let touched = entry
-                .dependencies
-                .iter()
-                .any(|dependency| changed.iter().any(|name| name == dependency));
-            if entry.computed && !touched {
-                continue;
+        let mut refreshed: Vec<String> = Vec::new();
+        let mut frontier = changed.to_vec();
+        let max_sweeps = self.entries.len() + 1;
+        for _ in 0..max_sweeps {
+            let mut next_frontier = Vec::new();
+            for index in 0..self.entries.len() {
+                let entry = &self.entries[index];
+                let touched = entry
+                    .dependencies
+                    .iter()
+                    .any(|dependency| frontier.iter().any(|name| name == dependency));
+                if entry.computed && !touched {
+                    continue;
+                }
+                let before = entry.value.clone();
+                let was_computed = entry.computed;
+                let entry = &mut self.entries[index];
+                entry.recompute(store);
+                if !was_computed || entry.value != before {
+                    if !refreshed.contains(&entry.name) {
+                        refreshed.push(entry.name.clone());
+                    }
+                    next_frontier.push(entry.name.clone());
+                }
             }
-            let before = entry.value.clone();
-            let was_computed = entry.computed;
-            entry.recompute(store);
-            if !was_computed || entry.value != before {
-                refreshed.push(entry.name.clone());
+            if next_frontier.is_empty() {
+                break;
             }
+            frontier = next_frontier;
         }
         refreshed
     }
@@ -133,7 +151,14 @@ mod tests {
     fn recomputes_from_state() {
         let mut store = store();
         let mut derived = Derived::new("doubled", vec!["count".into()], |store| {
-            Value::int(store.get(Scope::Instance, "count").unwrap().as_int().unwrap() * 2)
+            Value::int(
+                store
+                    .get(Scope::Instance, "count")
+                    .unwrap()
+                    .as_int()
+                    .unwrap()
+                    * 2,
+            )
         });
         assert_eq!(derived.recompute(&store), &Value::int(4));
         store.set(Scope::Instance, "count", Value::int(5));
@@ -145,9 +170,18 @@ mod tests {
         let store = store();
         let mut set = DerivedSet::new();
         set.insert(Derived::new("doubled", vec!["count".into()], |store| {
-            Value::int(store.get(Scope::Instance, "count").unwrap().as_int().unwrap() * 2)
+            Value::int(
+                store
+                    .get(Scope::Instance, "count")
+                    .unwrap()
+                    .as_int()
+                    .unwrap()
+                    * 2,
+            )
         }));
-        set.insert(Derived::new("label", vec!["other".into()], |_| Value::text("x")));
+        set.insert(Derived::new("label", vec!["other".into()], |_| {
+            Value::text("x")
+        }));
         let refreshed = set.refresh(&store, &[]);
         assert_eq!(refreshed, vec!["doubled".to_string(), "label".to_string()]);
     }
@@ -157,9 +191,18 @@ mod tests {
         let mut store = store();
         let mut set = DerivedSet::new();
         set.insert(Derived::new("doubled", vec!["count".into()], |store| {
-            Value::int(store.get(Scope::Instance, "count").unwrap().as_int().unwrap() * 2)
+            Value::int(
+                store
+                    .get(Scope::Instance, "count")
+                    .unwrap()
+                    .as_int()
+                    .unwrap()
+                    * 2,
+            )
         }));
-        set.insert(Derived::new("label", vec!["other".into()], |_| Value::text("x")));
+        set.insert(Derived::new("label", vec!["other".into()], |_| {
+            Value::text("x")
+        }));
         set.refresh(&store, &[]);
         store.set(Scope::Instance, "count", Value::int(5));
         let refreshed = set.refresh(&store, &["count".to_string()]);
@@ -168,11 +211,44 @@ mod tests {
     }
 
     #[test]
+    fn refresh_does_not_recompute_dependencies_that_stopped_changing() {
+        let store = store();
+        let dependent_runs = std::rc::Rc::new(std::cell::Cell::new(0));
+        let runs = std::rc::Rc::clone(&dependent_runs);
+        let mut set = DerivedSet::new();
+        set.insert(Derived::new("base", vec!["count".into()], |store| {
+            Value::int(
+                store
+                    .get(Scope::Instance, "count")
+                    .unwrap()
+                    .as_int()
+                    .unwrap(),
+            )
+        }));
+        set.insert(Derived::new("dependent", vec!["base".into()], move |_| {
+            runs.set(runs.get() + 1);
+            Value::int(1)
+        }));
+        set.refresh(&store, &[]);
+
+        assert_eq!(dependent_runs.get(), 2);
+        set.refresh(&store, &[]);
+        assert_eq!(dependent_runs.get(), 2);
+    }
+
+    #[test]
     fn snapshot_reports_every_value() {
         let store = store();
         let mut set = DerivedSet::new();
         set.insert(Derived::new("doubled", vec!["count".into()], |store| {
-            Value::int(store.get(Scope::Instance, "count").unwrap().as_int().unwrap() * 2)
+            Value::int(
+                store
+                    .get(Scope::Instance, "count")
+                    .unwrap()
+                    .as_int()
+                    .unwrap()
+                    * 2,
+            )
         }));
         set.refresh(&store, &[]);
         assert_eq!(set.snapshot().get("doubled"), Some(&Value::int(4)));

@@ -17,3 +17,4 @@ platipus-ir = { workspace = true }
 platipus-language = { workspace = true }
 platipus-semantic = { workspace = true }
 platipus-testing = { workspace = true }
+platipus-standard = { workspace = true }

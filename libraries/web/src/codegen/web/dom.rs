@@ -202,20 +202,31 @@ class Element_ extends Node_ {
     return ctx;
   }
 
-  addEventListener(name, handler) {
+  addEventListener(name, handler, options = false) {
     if (!this.listeners.has(name)) this.listeners.set(name, new Set());
-    this.listeners.get(name).add(handler);
+    const capture = typeof options === "object" ? !!options.capture : !!options;
+    this.listeners.get(name).add({ handler, capture });
   }
 
-  removeEventListener(name, handler) {
-    this.listeners.get(name)?.delete(handler);
+  removeEventListener(name, handler, options = false) {
+    const capture = typeof options === "object" ? !!options.capture : !!options;
+    const set = this.listeners.get(name);
+    if (!set) return;
+    for (const entry of [...set]) {
+      if (entry.handler === handler && entry.capture === capture) set.delete(entry);
+    }
   }
 
   dispatch(name, event = {}) {
     const handlers = this.listeners.get(name);
     if (!handlers) return 0;
-    for (const handler of [...handlers]) handler(event);
-    return handlers.size;
+    const entries = [...handlers];
+    // Capturing listeners fire in the capture phase, bubbling ones after;
+    // keeping the two phases separate means a capture-only registration
+    // cannot silently behave like a bubble listener.
+    for (const entry of entries.filter((e) => e.capture)) entry.handler(event);
+    for (const entry of entries.filter((e) => !e.capture)) entry.handler(event);
+    return entries.length;
   }
 
   /** How many handlers are still subscribed, so a test can prove they went. */

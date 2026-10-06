@@ -29,6 +29,7 @@ pub enum StatementKind {
     Break,
     Continue,
     Try {
+        binding: Option<String>,
         body: Vec<IrStatement>,
         handler: Vec<IrStatement>,
     },

@@ -15,6 +15,13 @@ pub fn render(module: &IrModule) -> String {
 <script type=\"module\" src=\"app.js\"></script>\n\
 </body>\n\
 </html>\n",
-        module.name
+        escape_html(&module.name)
     )
+}
+
+fn escape_html(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }

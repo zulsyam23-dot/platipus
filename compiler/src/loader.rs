@@ -237,8 +237,17 @@ impl<'l> Discovery<'l> {
         };
 
         // A module is a library: no `app`, and no declaration name that the
-        // program already owns.
-        let module = parser::parse(key.clone(), &source).program;
+        // program already owns. Parse errors in the module are fatal: merging
+        // a partially parsed module would hide the actual problem.
+        let outcome = parser::parse(key.clone(), &source);
+        if !outcome.errors.is_empty() {
+            return Err(self.fail_owned(
+                key,
+                source,
+                outcome.errors[0].clone(),
+            ));
+        }
+        let module = outcome.program;
         if let Some(app) = &module.app {
             return Err(self.fail_owned(
                 key,

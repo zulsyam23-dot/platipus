@@ -196,7 +196,7 @@ fn rendered_elements<'a>(statements: &'a [IrStatement], nested: &mut Vec<&'a IrE
             StatementKind::For { body, .. } | StatementKind::Block(body) => {
                 rendered_elements(body, nested)
             }
-            StatementKind::Try { body, handler } => {
+            StatementKind::Try { binding: _, body, handler } => {
                 rendered_elements(body, nested);
                 rendered_elements(handler, nested);
             }

@@ -77,6 +77,16 @@ pub fn bind_builtins(scope: &mut Scope) {
     ] {
         scope.bind(name, access);
     }
+    // The standard-library builtins become plt.* helpers too, so the same
+    // name a program calls in Platipus space resolves to the emitted helper.
+    // `drop` is bound above to storage deletion; list drop uses plt.dropList
+    // on the web side due to the shared spelling.
+    for builtin in platipus_standard::names() {
+        if matches!(builtin, "drop") {
+            continue;
+        }
+        scope.bind(builtin, format!("plt.{}", builtin));
+    }
 }
 
 /// Builds the name resolution scope for a component body.

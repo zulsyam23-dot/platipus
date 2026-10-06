@@ -1,9 +1,9 @@
-use platipus_diagnostics::{Error, ErrorKind, Span};
 use crate::element::{ElementItem, IrElement};
 use crate::expression::IrStateKind;
 use crate::module::IrModule;
 use crate::statement::{IrStatement, StatementKind};
 use crate::{IrComponent, IrDerived, IrState};
+use platipus_diagnostics::{Error, ErrorKind, Span};
 
 pub use crate::module::IrModule as IrProgram;
 
@@ -169,7 +169,7 @@ fn verify_component(component: &IrComponent, errors: &mut Vec<IrError>) {
             }
         }
         for statement in &function.body {
-            verify_statement(statement, component, errors);
+            verify_statement(statement, component, &function.parameters, errors);
         }
     }
     for item in &component.body {
@@ -277,7 +277,11 @@ fn verify_handler_statement(statement: &IrStatement, element: &str, errors: &mut
                 bodies.push(then_branch);
             }
             StatementKind::For { body, .. } | StatementKind::Block(body) => bodies.push(body),
-            StatementKind::Try { body, handler } => {
+            StatementKind::Try {
+                binding: _,
+                body,
+                handler,
+            } => {
                 bodies.push(handler);
                 bodies.push(body);
             }
@@ -297,10 +301,15 @@ fn verify_handler_statement(statement: &IrStatement, element: &str, errors: &mut
     }
 }
 
-fn verify_statement(statement: &IrStatement, component: &IrComponent, errors: &mut Vec<IrError>) {
+fn verify_statement(
+    statement: &IrStatement,
+    component: &IrComponent,
+    function_parameters: &[crate::IrInput],
+    errors: &mut Vec<IrError>,
+) {
     match &statement.kind {
         StatementKind::Assign { target, .. } => {
-            if !is_assignable(target, component) {
+            if !is_assignable(target, component, function_parameters) {
                 errors.push(IrError::new(
                     "not-assignable",
                     format!("`{target}` cannot be assigned to"),
@@ -314,27 +323,31 @@ fn verify_statement(statement: &IrStatement, component: &IrComponent, errors: &m
             ..
         } => {
             for inner in then_branch {
-                verify_statement(inner, component, errors);
+                verify_statement(inner, component, function_parameters, errors);
             }
             if let Some(else_branch) = else_branch {
                 for inner in else_branch {
-                    verify_statement(inner, component, errors);
+                    verify_statement(inner, component, function_parameters, errors);
                 }
             }
         }
         StatementKind::For { body, .. } => {
             for inner in body {
-                verify_statement(inner, component, errors);
+                verify_statement(inner, component, function_parameters, errors);
             }
         }
         StatementKind::Block(body) => {
             for inner in body {
-                verify_statement(inner, component, errors);
+                verify_statement(inner, component, function_parameters, errors);
             }
         }
-        StatementKind::Try { body, handler } => {
+        StatementKind::Try {
+            binding: _,
+            body,
+            handler,
+        } => {
             for inner in body.iter().chain(handler.iter()) {
-                verify_statement(inner, component, errors);
+                verify_statement(inner, component, function_parameters, errors);
             }
         }
         StatementKind::Emit { .. }
@@ -377,15 +390,35 @@ fn verify_bare_statement(statement: &IrStatement, errors: &mut Vec<IrError>) {
     }
 }
 
-fn is_assignable(target: &str, component: &IrComponent) -> bool {
+fn is_assignable(
+    target: &str,
+    component: &IrComponent,
+    function_parameters: &[crate::IrInput],
+) -> bool {
     let root = root_identifier(target);
+    // A target with no leading identifier is malformed, never assignable.
+    if root.is_empty()
+        || !target.starts_with(&root)
+        || !root
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_')
+    {
+        return false;
+    }
     if component.derived.iter().any(|derived| derived.name == root) {
         return false;
     }
     if component.inputs.iter().any(|input| input.name == root) {
         return false;
     }
-    true
+    // Only an explicitly writable target may be assigned: a component state
+    // or the current function's parameter. Anything else would emit an
+    // undeclared JavaScript variable.
+    component.states.iter().any(|state| state.name == root)
+        || function_parameters
+            .iter()
+            .any(|parameter| parameter.name == root)
 }
 
 fn root_identifier(target: &str) -> String {

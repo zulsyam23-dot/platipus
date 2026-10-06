@@ -4,18 +4,18 @@ pub mod bootstrap;
 pub mod component;
 pub mod rust;
 
-use platipus_ir::IrModule;
 use api::render_api;
 use bootstrap::render_bootstrap;
 use component::render_component;
+use platipus_ir::IrModule;
 use rust::render_rust_bridge;
 pub fn render(module: &IrModule, rust: Option<&platipus_ir::RustBridge>) -> String {
     let mut out = String::with_capacity(4096);
     out.push_str(PRELUDE);
     out.push('\n');
     out.push_str(&format!(
-        "export const module_name = {:?};\n\n",
-        module.name
+        "export const module_name = {};\n\n",
+        crate::codegen::expression::js_string(&module.name)
     ));
     if let Some(rust) = rust {
         out.push_str(&render_rust_bridge(rust));
@@ -29,8 +29,6 @@ pub fn render(module: &IrModule, rust: Option<&platipus_ir::RustBridge>) -> Stri
     out.push_str(&render_bootstrap(module));
     out
 }
-
-
 
 const PRELUDE: &str = r#"const plt = (() => {
   const channels = new Map();
@@ -450,6 +448,12 @@ function channelKey(name) {
   }
 
   function drop(backend, key) {
+    // The standard library's `drop` is a list operation; storage deletion is
+    // the same spelling with a backend name. Dispatch by argument shape.
+    if (Array.isArray(backend)) {
+      const count = typeof key === "number" ? Math.max(0, Math.trunc(key)) : 0;
+      return backend.slice(count);
+    }
     if (backend === "indexed") return idbRequest("delete", key);
     const storage = storageBackend(backend);
     if (!storage) return;
@@ -1375,6 +1379,166 @@ function applyDom(node, dom) {
     return instance;
   }
 
+// ---- standard library (mirrors platipus-standard call semantics) ----
+function len(value) {
+  if (typeof value === "string") return Array.from(value).length;
+  if (Array.isArray(value)) return value.length;
+  if (value && typeof value === "object") return Object.keys(value).length;
+  return null;
+}
+function isEmpty(value) {
+  if (value == null) return true;
+  if (typeof value === "string") return value.length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
+}
+function contains(collection, needle) {
+  if (typeof collection === "string") return typeof needle === "string" && collection.includes(needle);
+  if (Array.isArray(collection)) return collection.some((item) => sameValue(item, needle));
+  if (collection && typeof collection === "object") return typeof needle === "string" && Object.prototype.hasOwnProperty.call(collection, needle);
+  return false;
+}
+function indexOf(collection, needle) {
+  if (typeof collection === "string") {
+    if (typeof needle !== "string") return -1;
+    const index = collection.indexOf(needle);
+    return index < 0 ? -1 : Array.from(collection.slice(0, index)).length;
+  }
+  if (Array.isArray(collection)) return collection.findIndex((item) => sameValue(item, needle));
+  if (collection && typeof collection === "object") return typeof needle === "string" ? mapKeys(collection).indexOf(needle) : -1;
+  return -1;
+}
+function sameValue(a, b) {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((value, index) => sameValue(value, b[index]));
+  }
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    return aKeys.length === bKeys.length && aKeys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && sameValue(a[key], b[key]));
+  }
+  return false;
+}
+function compareText(a, b) {
+  const left = Array.from(a, (ch) => ch.codePointAt(0));
+  const right = Array.from(b, (ch) => ch.codePointAt(0));
+  const length = Math.min(left.length, right.length);
+  for (let i = 0; i < length; i += 1) {
+    if (left[i] !== right[i]) return left[i] - right[i];
+  }
+  return left.length - right.length;
+}
+function mapKeys(map) { return Object.keys(map).sort(compareText); }
+function upper(value) { return typeof value === "string" ? value.toUpperCase() : ""; }
+function lower(value) { return typeof value === "string" ? value.toLowerCase() : ""; }
+function trim(value) { return typeof value === "string" ? value.trim() : ""; }
+function split(value, separator) {
+  if (typeof value !== "string") return [];
+  if (typeof separator !== "string") return [];
+  if (separator === "") return Array.from(value);
+  return value.split(separator);
+}
+function replace(value, from, to) {
+  if (typeof value !== "string" || typeof from !== "string" || typeof to !== "string") return null;
+  if (from === "") return value;
+  return value.split(from).join(to);
+}
+function repeat(value, times) {
+  if (typeof value !== "string") return "";
+  if (typeof times !== "number" || !Number.isFinite(times)) return null;
+  if (times <= 0) return "";
+  return value.repeat(Math.trunc(times));
+}
+function join(value, separator) {
+  if (typeof value === "string") return value;
+  return Array.isArray(value) ? value.map((v) => v == null ? "" : String(v)).join(typeof separator === "string" ? separator : "") : "";
+}
+function padStart(value, width) {
+  if (typeof value !== "string") return "";
+  if (typeof width !== "number" || !Number.isFinite(width)) return null;
+  const count = Math.max(0, Math.trunc(width));
+  return " ".repeat(Math.max(0, count - Array.from(value).length)) + value;
+}
+function padEnd(value, width) {
+  if (typeof value !== "string") return "";
+  if (typeof width !== "number" || !Number.isFinite(width)) return null;
+  const count = Math.max(0, Math.trunc(width));
+  return value + " ".repeat(Math.max(0, count - Array.from(value).length));
+}
+function abs(value) {
+  return typeof value === "number" ? Math.abs(value) : null;
+}
+function min(a, b) { return typeof a === "number" && typeof b === "number" ? Math.min(a, b) : null; }
+function max(a, b) { return typeof a === "number" && typeof b === "number" ? Math.max(a, b) : null; }
+function clamp(value, lo, hi) {
+  if (typeof value !== "number" || typeof lo !== "number" || typeof hi !== "number") return null;
+  if (lo > hi) return null;
+  return Math.min(Math.max(value, lo), hi);
+}
+function floor(value) { return typeof value === "number" ? Math.floor(value) : null; }
+function ceil(value) { return typeof value === "number" ? Math.ceil(value) : null; }
+function round(value) { return typeof value === "number" ? Math.round(value) : null; }
+function sqrt(value) {
+  if (typeof value !== "number") return null;
+  const result = Math.sqrt(value);
+  return Number.isNaN(result) ? null : result;
+}
+function pow(base, exp) {
+  if (typeof base !== "number" || typeof exp !== "number") return null;
+  const result = Math.pow(base, exp);
+  return Number.isFinite(result) ? result : null;
+}
+function first(list) { return Array.isArray(list) && list.length ? list[0] : null; }
+function last(list) { return Array.isArray(list) && list.length ? list[list.length - 1] : null; }
+function take(list, count) {
+  if (!Array.isArray(list)) return null;
+  if (typeof count !== "number" || !Number.isFinite(count)) return null;
+  const start = Math.max(0, Math.trunc(count));
+  return list.slice(0, start);
+}
+function dropList(list, count) {
+  if (!Array.isArray(list)) return null;
+  if (typeof count !== "number" || !Number.isFinite(count)) return null;
+  const start = Math.max(0, Math.trunc(count));
+  return list.slice(start);
+}
+function reverse(list) { return Array.isArray(list) ? [...list].reverse() : null; }
+function unique(list) {
+  if (!Array.isArray(list)) return null;
+  return list.filter((item, i) => list.findIndex((other) => sameValue(other, item)) === i);
+}
+function keys(map) { return map && typeof map === "object" && !Array.isArray(map) ? mapKeys(map) : null; }
+function values(map) { return map && typeof map === "object" && !Array.isArray(map) ? mapKeys(map).map((key) => map[key]) : null; }
+function has(map, key) { return map && typeof map === "object" && !Array.isArray(map) && typeof key === "string" ? Object.prototype.hasOwnProperty.call(map, key) : false; }
+function get(map, key) {
+  if (map && typeof map === "object" && !Array.isArray(map) && typeof key === "string" && Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+  return null;
+}
+function merge(a, b) {
+  if (a && typeof a === "object" && !Array.isArray(a) && b && typeof b === "object" && !Array.isArray(b)) return { ...a, ...b };
+  return null;
+}
+function parseInt(value) {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  return /^[+-]?\d+$/.test(text) ? Number.parseInt(text, 10) : null;
+}
+function parseFloat(value) {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  return /^[+-]?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$/.test(text) ? Number.parseFloat(text) : null;
+}
+function toText(value) {
+  if (value == null) return "";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(toText).join(", ");
+  return "[map]";
+}
+
 return {
     signal,
     computed,
@@ -1404,6 +1568,42 @@ return {
     indent,
     sortBy,
     page,
+    len,
+    isEmpty,
+    contains,
+    indexOf,
+    upper,
+    lower,
+    trim,
+    split,
+    replace,
+    repeat,
+    join,
+    padStart,
+    padEnd,
+    abs,
+    min,
+    max,
+    clamp,
+    floor,
+    ceil,
+    round,
+    sqrt,
+    pow,
+    first,
+    last,
+    take,
+    dropList,
+    reverse,
+    unique,
+    keys,
+    values,
+    has,
+    get,
+    merge,
+    parseInt,
+    parseFloat,
+    toText,
     el,
     fragment,
     branch,

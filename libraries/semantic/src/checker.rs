@@ -289,12 +289,14 @@ impl SemanticChecker {
                 self.check_type(&decl.type_annotation);
                 if let Some(initializer) = &decl.initializer {
                     self.check_expression(initializer);
+                    self.check_annotation_matches(&decl.type_annotation, initializer);
                 }
             }
             ComponentItem::Derived(decl) => {
                 self.declare(&decl.name, SymbolKind::Derived);
                 self.check_type(&decl.type_annotation);
                 self.check_expression(&decl.value);
+                self.check_annotation_matches(&decl.type_annotation, &decl.value);
             }
             ComponentItem::Function(decl) => {
                 self.declare(&decl.name, SymbolKind::Function);
@@ -304,6 +306,7 @@ impl SemanticChecker {
                     self.check_type(&parameter.type_annotation);
                     if let Some(default) = &parameter.default {
                         self.check_expression(default);
+                        self.check_annotation_matches(&parameter.type_annotation, default);
                     }
                 }
                 self.check_type(&decl.return_type);
@@ -647,6 +650,82 @@ impl SemanticChecker {
         }
     }
 
+    /// Best-effort type of an expression, used to check explicit annotations.
+    /// Returns `None` whenever the type is not statically known (identifiers,
+    /// calls, holes) — an unknown type must never be rejected.
+    fn infer_expr_type(&self, expression: &platipus_language::ast::Expression) -> Option<&'static str> {
+        use platipus_language::ast::{BinaryOp, Expression};
+        match expression {
+            Expression::IntLiteral(..) => Some("Int"),
+            Expression::FloatLiteral(..) => Some("Float"),
+            Expression::StringLiteral(..) => Some("String"),
+            Expression::BoolLiteral(..) => Some("Bool"),
+            Expression::Unary { operand, op, .. } => match op {
+                platipus_language::ast::UnaryOp::Not => Some("Bool"),
+                platipus_language::ast::UnaryOp::Negate => self.infer_expr_type(operand),
+            },
+            Expression::Logical { .. } => Some("Bool"),
+            Expression::Binary { op, left, right, .. } => {
+                use BinaryOp::*;
+                match op {
+                    Eq | Ne | Lt | Le | Gt | Ge => Some("Bool"),
+                    Add => {
+                        let l = self.infer_expr_type(left);
+                        let r = self.infer_expr_type(right);
+                        match (l, r) {
+                            (Some("String"), Some("String")) => Some("String"),
+                            (Some("Int"), Some("Int")) => Some("Int"),
+                            (Some("Float"), _) | (_, Some("Float")) => Some("Float"),
+                            _ => None,
+                        }
+                    }
+                    Sub | Mul | Div | Rem => {
+                        let l = self.infer_expr_type(left);
+                        let r = self.infer_expr_type(right);
+                        match (l, r) {
+                            (Some("Int"), Some("Int")) => Some("Int"),
+                            (Some("Float"), _) | (_, Some("Float")) => Some("Float"),
+                            _ => None,
+                        }
+                    }
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Reports a mismatch between an explicit annotation and a statically
+    /// known expression type. Unknown expression types are accepted.
+    fn check_annotation_matches(
+        &mut self,
+        annotation: &Option<TypeExpr>,
+        expression: &platipus_language::ast::Expression,
+    ) {
+        let Some(annotation) = annotation else {
+            return;
+        };
+        let expected = match annotation.base_name() {
+            "Text" => "String",
+            other => other,
+        };
+        if !matches!(expected, "Bool" | "Int" | "Float" | "String") {
+            return;
+        }
+        let Some(actual) = self.infer_expr_type(expression) else {
+            return;
+        };
+        if actual != expected {
+            self.diagnostics.error(
+                Error::new(
+                    ErrorKind::Semantic,
+                    "type-mismatch",
+                    format!("expected `{expected}` but found `{actual}`"),
+                )
+                .with_span(expression.span()),
+            );
+        }
+    }
+
     fn check_type(&mut self, annotation: &Option<TypeExpr>) {
         let Some(annotation) = annotation else {
             return;
@@ -835,5 +914,5 @@ const BUILTIN_FUNCTIONS: &[&str] = &[
 ];
 
 fn is_builtin_function(name: &str) -> bool {
-    BUILTIN_FUNCTIONS.contains(&name)
+    BUILTIN_FUNCTIONS.contains(&name) || platipus_standard::lookup(name).is_some()
 }
