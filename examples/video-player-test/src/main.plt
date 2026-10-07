@@ -9,6 +9,11 @@ theme Youtube {
     muted: "#606060"
     accent: "#ff0000"
     radius: "12px"
+    fontSize: "15px"
+    gap: "16px"
+    pad: "16px"
+    controlPad: "8px 16px"
+    inputPad: "8px 12px"
 }
 
 app VideoPlayerTest {
