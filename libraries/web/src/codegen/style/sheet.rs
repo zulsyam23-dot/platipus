@@ -33,6 +33,20 @@ pub const TOKENS: &str = r#"
   --plt-shadow: 0 1px 2px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 6%);
   --plt-ring: 0 0 0 3px color-mix(in srgb, var(--plt-accent) 35%, transparent);
   --plt-code-bg: #f4f4f8;
+
+  --plt-font-size: 15px;
+  --plt-line-height: 1.5;
+  --plt-control-gap: 6px;
+  --plt-control-pad: 7px 14px;
+  --plt-input-pad: 7px 10px;
+  --plt-field-gap: 5px;
+  --plt-check-size: 16px;
+  --plt-cell-pad: 8px 12px;
+  --plt-tab-pad: 8px 14px;
+  --plt-item-pad: 6px 10px;
+  --plt-menu-pad: 6px;
+  --plt-overlay-pad: 10px 14px;
+  --plt-bar-pad: 8px;
 "#;
 
 /// The same tokens under a dark `prefers-color-scheme`, so a program that
@@ -65,8 +79,8 @@ body {
   background: var(--plt-bg);
   color: var(--plt-text);
   font-family: var(--plt-font);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: var(--plt-font-size);
+  line-height: var(--plt-line-height);
   -webkit-font-smoothing: antialiased;
 }
 h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd { margin: 0; }
@@ -168,7 +182,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     // ---- controls --------------------------------------------------------
     (
         "plt-button, .plt-command",
-        "display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 14px; border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); color: var(--plt-text); font-weight: 500; line-height: 1.35; white-space: nowrap; transition: background 120ms ease, border-color 120ms ease;",
+        "display: inline-flex; align-items: center; justify-content: center; gap: var(--plt-control-gap); padding: var(--plt-control-pad); border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); color: var(--plt-text); font-weight: 500; line-height: 1.35; white-space: nowrap; transition: background 120ms ease, border-color 120ms ease;",
     ),
     (
         "plt-button:hover, .plt-command:hover",
@@ -186,11 +200,11 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     // so it only has to make that a grid rather than a stack of loose children.
     (
         "plt-field",
-        "display: flex; flex-direction: column; gap: 5px; min-width: 0;",
+        "display: flex; flex-direction: column; gap: var(--plt-field-gap); min-width: 0;",
     ),
     (
         "input.plt-input, textarea.plt-textarea, select.plt-select",
-        "width: 100%; padding: 7px 10px; border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); color: var(--plt-text); min-width: 0;",
+        "width: 100%; padding: var(--plt-input-pad); border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); color: var(--plt-text); min-width: 0;",
     ),
     (
         ".plt-row > input.plt-input, .plt-row > textarea.plt-textarea, .plt-row > select.plt-select",
@@ -220,7 +234,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     // control; the switch only adds its own shape on top.
     (
         "input.plt-checkbox, input.plt-radio, input.plt-switch",
-        "width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--plt-accent); cursor: pointer; flex: none;",
+        "width: var(--plt-check-size); height: var(--plt-check-size); padding: 0; margin: 0; accent-color: var(--plt-accent); cursor: pointer; flex: none;",
     ),
     ("input.plt-radio", "border-radius: 50%;"),
     (
@@ -265,12 +279,12 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ("input.plt-file", "padding: 5px; cursor: pointer;"),
     (
         "input.plt-file::file-selector-button",
-        "margin-right: 10px; padding: 4px 10px; border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface-2); color: var(--plt-text); font: inherit; cursor: pointer;",
+        "margin-right: 10px; padding: var(--plt-item-pad); border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface-2); color: var(--plt-text); font: inherit; cursor: pointer;",
     ),
     // ---- navigation ------------------------------------------------------
     (
         "plt-navigation, .plt-toolbar",
-        "display: flex; align-items: center; gap: var(--plt-gap); padding: 8px var(--plt-pad); background: var(--plt-surface); border-bottom: 1px solid var(--plt-border);",
+        "display: flex; align-items: center; gap: var(--plt-gap); padding: var(--plt-bar-pad) var(--plt-pad); background: var(--plt-surface); border-bottom: 1px solid var(--plt-border);",
     ),
     (
         "plt-sidebar",
@@ -282,7 +296,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         "plt-tab",
-        "padding: 8px 14px; border-bottom: 2px solid transparent; color: var(--plt-muted); cursor: pointer; user-select: none;",
+        "padding: var(--plt-tab-pad); border-bottom: 2px solid transparent; color: var(--plt-muted); cursor: pointer; user-select: none;",
     ),
     ("plt-tab:hover", "color: var(--plt-text);"),
     (
@@ -295,17 +309,17 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         "plt-menu-item",
-        "padding: 6px 10px; border-radius: var(--plt-radius-sm); cursor: pointer;",
+        "padding: var(--plt-item-pad); border-radius: var(--plt-radius-sm); cursor: pointer;",
     ),
     ("plt-menu-item:hover", "background: var(--plt-surface-2);"),
     (
         "plt-context-menu, .plt-popover",
-        "padding: 6px; background: var(--plt-surface); border: 1px solid var(--plt-border); border-radius: var(--plt-radius); box-shadow: var(--plt-shadow); min-width: 160px;",
+        "padding: var(--plt-menu-pad); background: var(--plt-surface); border: 1px solid var(--plt-border); border-radius: var(--plt-radius); box-shadow: var(--plt-shadow); min-width: 160px;",
     ),
     // ---- surfaces and overlays -------------------------------------------
     (
         ".plt-sheet, .plt-toast, .plt-tooltip",
-        "position: absolute; z-index: 20; padding: 10px 14px; background: var(--plt-surface); border: 1px solid var(--plt-border); border-radius: var(--plt-radius); box-shadow: var(--plt-shadow);",
+        "position: absolute; z-index: 20; padding: var(--plt-overlay-pad); background: var(--plt-surface); border: 1px solid var(--plt-border); border-radius: var(--plt-radius); box-shadow: var(--plt-shadow);",
     ),
     (
         ".plt-toast",
@@ -317,7 +331,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         "dialog.plt-modal, dialog.plt-dialog",
-        "padding: 20px; max-width: min(520px, 90vw); border: 1px solid var(--plt-border); border-radius: var(--plt-radius); background: var(--plt-surface); color: var(--plt-text); box-shadow: var(--plt-shadow);",
+        "padding: calc(var(--plt-pad) * 1.67); max-width: min(520px, 90vw); border: 1px solid var(--plt-border); border-radius: var(--plt-radius); background: var(--plt-surface); color: var(--plt-text); box-shadow: var(--plt-shadow);",
     ),
     ("dialog::backdrop", "background: rgb(0 0 0 / 45%);"),
     // ---- data ------------------------------------------------------------
@@ -327,7 +341,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         ".plt-table th, .plt-data-grid th, .plt-table td, .plt-data-grid td",
-        "padding: 8px 12px; text-align: start; border-bottom: 1px solid var(--plt-border);",
+        "padding: var(--plt-cell-pad); text-align: start; border-bottom: 1px solid var(--plt-border);",
     ),
     (
         ".plt-table th, .plt-data-grid th",
@@ -343,7 +357,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         ".plt-list > li, .plt-tree > li",
-        "padding: 6px 10px; border-bottom: 1px solid var(--plt-border);",
+        "padding: var(--plt-item-pad); border-bottom: 1px solid var(--plt-border);",
     ),
     (
         ".plt-tree ul",
@@ -352,7 +366,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     // ---- editors ---------------------------------------------------------
     (
         ".plt-editor",
-        "min-height: 90px; padding: 10px 12px; border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); outline: none; overflow-wrap: anywhere;",
+        "min-height: 90px; padding: var(--plt-input-pad); border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); outline: none; overflow-wrap: anywhere;",
     ),
     (
         ".plt-editor:empty::before",
@@ -371,7 +385,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         ".plt-code-shell > textarea.plt-code-editor",
-        "display: block; width: 100%; min-height: 140px; margin: 0; padding: 10px 12px; border: 0; background: transparent; color: transparent; caret-color: var(--plt-text); resize: vertical; outline: none; overflow: auto;",
+        "display: block; width: 100%; min-height: 140px; margin: 0; padding: var(--plt-input-pad); border: 0; background: transparent; color: transparent; caret-color: var(--plt-text); resize: vertical; outline: none; overflow: auto;",
     ),
     (
         ".plt-code-shell:focus-within",
@@ -443,7 +457,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     // for that to mean anything.
     (
         "input.plt-date, input.plt-time",
-        "font: inherit; color: var(--plt-text); background: var(--plt-surface); border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); padding: 6px 10px; line-height: 1.35;",
+        "font: inherit; color: var(--plt-text); background: var(--plt-surface); border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); padding: var(--plt-item-pad); line-height: 1.35;",
     ),
     (
         "input.plt-date:hover, input.plt-time:hover",
@@ -466,7 +480,7 @@ pub const ELEMENTS: &[(&str, &str)] = &[
     ),
     (
         "th.plt-header, td.plt-cell",
-        "padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--plt-border);",
+        "padding: var(--plt-cell-pad); text-align: left; border-bottom: 1px solid var(--plt-border);",
     ),
     (
         "th.plt-header",
@@ -482,7 +496,7 @@ pub const ROOT: &str = r#"
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: 20px;
+  padding: calc(var(--plt-pad) * 1.67);
   gap: var(--plt-gap);
   background: var(--plt-bg);
   color: var(--plt-text);
