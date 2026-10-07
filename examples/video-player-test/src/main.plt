@@ -9,10 +9,6 @@ theme Youtube {
     muted: "#606060"
     accent: "#ff0000"
     radius: "12px"
-    card: "#ffffff"
-    cardAlt: "#f2f2f2"
-    cardBorder: "#e5e5e5"
-    cardRadius: "12px"
 }
 
 app VideoPlayerTest {
