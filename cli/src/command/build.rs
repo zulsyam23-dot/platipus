@@ -3,8 +3,8 @@ use std::process::ExitCode;
 
 use platipus_compiler::codegen::Web;
 use platipus_compiler::diagnostics::{CompileError, SourceFile};
-use platipus_compiler::loader::FsLoader;
 use platipus_compiler::pipeline::{self, Compilation, EntryFailure};
+use platipus_p2lt::cache::StoreLoader;
 
 use crate::config::Options;
 use crate::output::{diagnostics, path_label, read_entry, report, write_artifacts};
@@ -36,7 +36,7 @@ pub fn compile_entry(entry: &Path, rust_mode: crate::command::RustMode) -> Resul
         mode: rust_mode.into(),
         rust_dependencies: Vec::new(),
     };
-    match pipeline::build_entry_rust(&label, &source, &FsLoader, &Web, Some(&rust)) {
+    match pipeline::build_entry_rust(&label, &source, &StoreLoader::new(), &Web, Some(&rust)) {
         Ok(loaded) => Ok(Built {
             compilation: loaded.compilation,
             file: loaded.file,

@@ -20,23 +20,42 @@ pub fn project_root(start: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Installs `name` from the registry into `.p2lt/packages/<name>/`, updates
-/// the manifest and lockfile.
+/// Installs `name` from the registry (or a local `.libplt` path) into the
+/// global Library Store, then updates the manifest and lockfile.
 pub fn install(project: &Path, name: &str) -> Result<Manifest, String> {
-    let registry = Registry::for_project(project);
-    let source = registry
-        .get(name)
-        .ok_or_else(|| format!("package `{name}` not found in the registry"))?;
-    let _source_manifest = read_manifest(&source)?;
-    let dest = project.join(".p2lt").join("packages").join(name);
-    if dest.exists() {
-        std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
-    }
-    registry::copy_dir(&source, &dest)?;
+    let (source_manifest, dest) = if name.ends_with(".libplt") || Path::new(name).exists() {
+        let path = Path::new(name);
+        let manifest = crate::package::validate(path)?;
+        let dest = crate::cache::package_dir(&manifest.name);
+        if dest.exists() {
+            std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
+        }
+        crate::package::unpack(path, &dest)?;
+        (manifest, dest)
+    } else {
+        let registry = Registry::for_project(project);
+        let source = registry
+            .get(name)
+            .ok_or_else(|| format!("package `{name}` not found in the registry"))?;
+        let _source_manifest = read_manifest(&source)?;
+        let dest = crate::cache::package_dir(name);
+        if dest.exists() {
+            std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
+        }
+        registry::copy_dir(&source, &dest)?;
+        (read_manifest(&dest)?, dest)
+    };
     let mut manifest = read_manifest(project)?;
-    let version = read_manifest(&dest)?.version;
-    manifest.dependencies.insert(name.to_string(), version_req(&version));
-    write_all(project, &manifest, dest_checksum(&dest)?, name, &version)?;
+    manifest
+        .dependencies
+        .insert(source_manifest.name.clone(), version_req(&source_manifest.version));
+    write_all(
+        project,
+        &manifest,
+        dest_checksum(&dest)?,
+        &source_manifest.name,
+        &source_manifest.version,
+    )?;
     Ok(manifest)
 }
 
@@ -63,7 +82,7 @@ pub fn install_all(project: &Path) -> Result<(), String> {
 }
 
 pub fn remove(project: &Path, name: &str) -> Result<Manifest, String> {
-    let dest = project.join(".p2lt").join("packages").join(name);
+    let dest = crate::cache::package_dir(name);
     if dest.exists() {
         std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
     }
@@ -86,7 +105,7 @@ pub fn update(project: &Path) -> Result<Lockfile, String> {
             .get(name)
             .ok_or_else(|| format!("package `{name}` not found in the registry"))?;
         let version = read_manifest(&source)?.version;
-        let dest = project.join(".p2lt").join("packages").join(name);
+        let dest = crate::cache::package_dir(name);
         if dest.exists() {
             std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
         }

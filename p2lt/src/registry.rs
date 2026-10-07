@@ -14,13 +14,14 @@ impl Registry {
         Self { root: root.into() }
     }
 
-    /// The registry directory for a project: `<project>/.p2lt/registry`,
-    /// overridable with `P2LT_REGISTRY`.
-    pub fn for_project(project: &Path) -> Self {
+    /// The registry directory: `$P2LT_REGISTRY`, else `<store>/registry`
+    /// so local packages are shared across projects instead of living
+    /// inside each project.
+    pub fn for_project(_project: &Path) -> Self {
         if let Some(env) = std::env::var_os("P2LT_REGISTRY") {
             return Self::new(env);
         }
-        Self::new(project.join(".p2lt").join("registry"))
+        Self::new(crate::cache::store_dir().join("registry"))
     }
 
     pub fn list(&self) -> Vec<String> {

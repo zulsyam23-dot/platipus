@@ -1,6 +1,6 @@
 //! Command-line handling for the `p2lt` binary.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 
 use crate::manifest::Manifest;
@@ -16,6 +16,8 @@ USAGE:
 
 COMMANDS:
     init                 create p2lt.toml, src/main.plt, .gitignore
+    pack                 bundle the project into <name>-<version>.libplt
+    validate <file>      check a .libplt archive
     install <name>       install a package from the local registry
     remove <name>        remove a package and update the manifest + lockfile
     update               refresh all dependencies from the registry
@@ -52,6 +54,16 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let project = std::env::current_dir().map_err(|e| e.to_string())?;
     match command {
         "init" => init(&project),
+        "pack" => {
+            let packed = crate::package::pack(&project, &project)?;
+            println!("packed {}", packed.display());
+            Ok(())
+        }
+        "validate" => with_arg(args, "validate <file>", |file| {
+            let manifest = crate::package::validate(std::path::Path::new(file))?;
+            println!("valid: {} {}", manifest.name, manifest.version);
+            Ok(())
+        }),
         "install" => with_arg(args, "install <name>", |name| {
             resolver::install(&project, name)?;
             println!("installed {name}");
@@ -113,6 +125,17 @@ pub fn run(args: &[String]) -> Result<(), String> {
 pub fn run_from_args(project: &Path, args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("init") => init(project),
+        Some("pack") => {
+            let packed = crate::package::pack(project, project)?;
+            println!("packed {}", packed.display());
+            Ok(())
+        }
+        Some("validate") => {
+            let file = args.get(1).ok_or("p2lt: expected `validate <file>`")?;
+            let manifest = crate::package::validate(std::path::Path::new(file))?;
+            println!("valid: {} {}", manifest.name, manifest.version);
+            Ok(())
+        }
         Some("install") => with_arg(args, "install <name>", |name| {
             resolver::install(project, name)?;
             println!("installed {name}");
@@ -168,7 +191,7 @@ fn init(project: &Path) -> Result<(), String> {
         format!("app Main {{\n    Column {{\n        Text \"Hello from {name}\"\n    }}\n}}\n"),
     )
     .map_err(|e| e.to_string())?;
-    std::fs::write(project.join(".gitignore"), "target/\ndist/\n.p2lt/packages/\n")
+    std::fs::write(project.join(".gitignore"), "target/\ndist/\n")
         .map_err(|e| e.to_string())?;
     std::fs::create_dir_all(project.join("tests")).map_err(|e| e.to_string())?;
     println!("initialized {name}");
@@ -182,7 +205,7 @@ fn build(project: &Path) -> Result<(), String> {
     }
     let source = std::fs::read_to_string(&entry).map_err(|e| e.to_string())?;
     let label = entry.display().to_string();
-    let loader = PackageLoader::new(project.to_path_buf());
+    let loader = crate::cache::StoreLoader::new();
     let rust_dependencies =
         crate::manifest::Manifest::from_toml(&std::fs::read_to_string(project.join("p2lt.toml")).map_err(|e| e.to_string())?)?
             .rust_dependencies
@@ -284,39 +307,4 @@ fn clean(project: &Path) -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-/// Resolves `import Name from "pkg-name"` against `.p2lt/packages/<name>/`.
-struct PackageLoader {
-    project: PathBuf,
-}
-
-impl PackageLoader {
-    fn new(project: PathBuf) -> Self {
-        Self { project }
-    }
-}
-
-impl platipus_compiler::loader::Loader for PackageLoader {
-    fn read(&self, path: &str) -> Result<String, platipus_compiler::loader::ReadError> {
-        if let Ok(text) = std::fs::read_to_string(path) {
-            return Ok(text);
-        }
-        // Non-path import: treat the last path component as a package name.
-        let name = Path::new(path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(path);
-        let candidate = self
-            .project
-            .join(".p2lt")
-            .join("packages")
-            .join(name)
-            .join("src")
-            .join("lib.plt");
-        match std::fs::read_to_string(candidate) {
-            Ok(text) => Ok(text),
-            Err(_) => Err(platipus_compiler::loader::ReadError::NotFound),
-        }
-    }
 }

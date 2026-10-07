@@ -36,3 +36,4 @@ path = "../tests/web/main.rs"
 # no use for the host runtime or the standard-library helpers; declaring either
 # would only compile them and imply the CLI drives them, which it does not.
 platipus-compiler = { workspace = true }
+platipus-p2lt = { workspace = true }
