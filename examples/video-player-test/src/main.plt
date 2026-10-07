@@ -1,5 +1,16 @@
 import PemutarVideo from "pemutar-video"
 
+theme Youtube {
+    background: "#ffffff"
+    surface: "#ffffff"
+    surfaceAlt: "#f2f2f2"
+    border: "#e5e5e5"
+    foreground: "#0f0f0f"
+    muted: "#606060"
+    accent: "#ff0000"
+    radius: "12px"
+}
+
 app VideoPlayerTest {
     state volume = 80.0
 
