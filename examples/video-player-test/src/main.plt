@@ -8,6 +8,8 @@ app VideoPlayerTest {
             maxWidth: "720px"
             margin: "0 auto"
             padding: 24
+            background: "#eef2f7"
+            color: "#0f172a"
         }
         Column {
             gap: 16
