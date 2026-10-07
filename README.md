@@ -137,10 +137,13 @@ imported module triggers a rebuild.
 ## Documentation
 
 See [`docs/`](docs/). [`docs/prd.md`](docs/prd.md) is what the language is meant
-to be, [`docs/struktur.md`](docs/struktur.md) is the structure the code is
-organised towards, and [`docs/roadmap.md`](docs/roadmap.md) is what is actually
-implemented today. Read the roadmap before trusting a feature: it states, per
-phase, what works and what does not.
+to be, [`docs/guide.md`](docs/guide.md) is how to write Platipus code,
+[`docs/library.md`](docs/library.md) is how to create and consume libraries
+(including the `.libplt` / `p2lt` flow), [`docs/struktur.md`](docs/struktur.md)
+is the structure the code is organised towards, and
+[`docs/roadmap.md`](docs/roadmap.md) is what is actually implemented today.
+Read the roadmap before trusting a feature: it states, per phase, what works
+and what does not.
 
 ## Status
 
