@@ -53,8 +53,16 @@ app VideoPlayerTest {
                     style {
                         flex: "1"
                     }
-                    VideoPlayer {
-                        source: "movie.mp4"
+                    Card {
+                        padding: 16
+                        style {
+                            background: "var(--plt-surface)"
+                            borderRadius: "var(--plt-radius)"
+                            boxShadow: "var(--plt-shadow)"
+                        }
+                        VideoPlayer {
+                            source: "movie.mp4"
+                        }
                     }
                     Heading "Video Demo Platipus - Tutorial Lengkap 2026" {
                         level: 3
