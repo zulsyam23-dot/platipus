@@ -9,6 +9,10 @@ theme Youtube {
     muted: "#606060"
     accent: "#ff0000"
     radius: "12px"
+    card: "#ffffff"
+    cardAlt: "#f2f2f2"
+    cardBorder: "#e5e5e5"
+    cardRadius: "12px"
 }
 
 app VideoPlayerTest {
@@ -67,12 +71,25 @@ app VideoPlayerTest {
                         Text "Channel Platipus"
                         Text "1,2 jt x ditonton • 3 jam lalu"
                     }
-                    ToggleRow {
-                        label: "Subscribe"
-                        checked: false
+                    Row {
+                        gap: 16
+                        style {
+                            alignItems: "center"
+                        }
+                        ToggleRow {
+                            label: "Subscribe"
+                            checked: false
+                        }
+                        VolumeSlider {
+                            value: volume
+                        }
                     }
-                    VolumeSlider {
-                        value: volume
+                    ProgressBar {
+                        label: "Memuat subtitle"
+                        value: 0.8
+                    }
+                    AudioPlayer {
+                        source: "podcast.mp3"
                     }
                 }
 
@@ -95,6 +112,9 @@ app VideoPlayerTest {
                     ImageCard {
                         src: "thumb3.jpg"
                         caption: "Live Coding Platipus"
+                    }
+                    LoadingOverlay {
+                        label: "Memuat rekomendasi..."
                     }
                 }
             }
