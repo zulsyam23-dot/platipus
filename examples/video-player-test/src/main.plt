@@ -1,61 +1,91 @@
 import PemutarVideo from "pemutar-video"
 
 app VideoPlayerTest {
-    state volume = 50.0
+    state volume = 80.0
 
     Page {
         style {
-            maxWidth: "720px"
             margin: "0 auto"
-            padding: 24
-            background: "#eef2f7"
-            color: "#0f172a"
+            background: "#ffffff"
+            color: "#0f0f0f"
         }
         Column {
-            gap: 16
-            Heading "Demo Pemutar Video" {
-                level: 1
+            gap: 0
+
+            Row {
+                gap: 16
+                style {
+                    padding: "12px 24px"
+                    borderBottom: "1px solid #e5e5e5"
+                    alignItems: "center"
+                }
+                Heading "▶ YouTube" {
+                    level: 2
+                    style {
+                        color: "#ff0000"
+                    }
+                }
+                SearchBar {
+                    placeholder: "Cari video..."
+                }
             }
 
-            VideoPlayer {
-                source: "movie.mp4"
-            }
+            Row {
+                gap: 24
+                style {
+                    padding: 24
+                    alignItems: "flex-start"
+                }
 
-            AudioPlayer {
-                source: "podcast.mp3"
-            }
+                Column {
+                    gap: 16
+                    style {
+                        flex: "1"
+                    }
+                    VideoPlayer {
+                        source: "movie.mp4"
+                    }
+                    Heading "Video Demo Platipus - Tutorial Lengkap 2026" {
+                        level: 3
+                    }
+                    Row {
+                        gap: 16
+                        style {
+                            alignItems: "center"
+                        }
+                        Text "Channel Platipus"
+                        Text "1,2 jt x ditonton • 3 jam lalu"
+                    }
+                    ToggleRow {
+                        label: "Subscribe"
+                        checked: false
+                    }
+                    VolumeSlider {
+                        value: volume
+                    }
+                }
 
-            ImageCard {
-                src: "poster.jpg"
-                caption: "Poster Film"
-            }
-
-            SearchBar {
-                placeholder: "Cari video..."
-            }
-
-            ProgressBar {
-                label: "Mengunduh"
-                value: 0.6
-            }
-
-            ToggleRow {
-                label: "Mode gelap"
-                checked: true
-            }
-
-            VolumeSlider {
-                value: volume
-            }
-
-            LoadingOverlay {
-                label: "Memuat video..."
-            }
-
-            AlertDialog {
-                open: true
-                title: "Selamat datang"
-                message: "Demo library pemutar-video"
+                Column {
+                    gap: 12
+                    style {
+                        width: "320px"
+                    }
+                    Heading "Rekomendasi" {
+                        level: 3
+                    }
+                    ImageCard {
+                        src: "thumb1.jpg"
+                        caption: "Cara Membuat Aplikasi UI"
+                    }
+                    ImageCard {
+                        src: "thumb2.jpg"
+                        caption: "Belajar Package Manager"
+                    }
+                    ImageCard {
+                        src: "thumb3.jpg"
+                        caption: "Live Coding Platipus"
+                    }
+                }
             }
         }
     }
