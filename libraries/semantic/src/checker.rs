@@ -675,7 +675,9 @@ impl SemanticChecker {
                         match (l, r) {
                             (Some("String"), Some("String")) => Some("String"),
                             (Some("Int"), Some("Int")) => Some("Int"),
-                            (Some("Float"), _) | (_, Some("Float")) => Some("Float"),
+                            (Some("Float"), Some("Float"))
+                            | (Some("Float"), Some("Int"))
+                            | (Some("Int"), Some("Float")) => Some("Float"),
                             _ => None,
                         }
                     }
@@ -684,7 +686,9 @@ impl SemanticChecker {
                         let r = self.infer_expr_type(right);
                         match (l, r) {
                             (Some("Int"), Some("Int")) => Some("Int"),
-                            (Some("Float"), _) | (_, Some("Float")) => Some("Float"),
+                            (Some("Float"), Some("Float"))
+                            | (Some("Float"), Some("Int"))
+                            | (Some("Int"), Some("Float")) => Some("Float"),
                             _ => None,
                         }
                     }
@@ -768,7 +772,14 @@ impl SemanticChecker {
                 }
             }
             Expression::Unary { operand, .. } => self.check_expression(operand),
-            Expression::Binary { left, right, .. } | Expression::Logical { left, right, .. } => {
+            Expression::Binary {
+                op, left, right, span,
+            } => {
+                self.check_expression(left);
+                self.check_expression(right);
+                self.check_binary_operands(op, left, right, *span);
+            }
+            Expression::Logical { left, right, .. } => {
                 self.check_expression(left);
                 self.check_expression(right);
             }
@@ -796,6 +807,39 @@ impl SemanticChecker {
             | Expression::StringLiteral(..)
             | Expression::BoolLiteral(..)
             | Expression::NullLiteral(..) => {}
+        }
+    }
+
+    fn check_binary_operands(
+        &mut self,
+        op: &platipus_language::ast::BinaryOp,
+        left: &Expression,
+        right: &Expression,
+        span: Span,
+    ) {
+        use platipus_language::ast::BinaryOp;
+        if !op.is_arithmetic() {
+            return;
+        }
+        let (Some(l), Some(r)) = (self.infer_expr_type(left), self.infer_expr_type(right)) else {
+            return;
+        };
+        let numeric = |t: &str| t == "Int" || t == "Float";
+        let valid = match op {
+            BinaryOp::Add => {
+                (l == "String" && r == "String") || (numeric(l) && numeric(r))
+            }
+            _ => numeric(l) && numeric(r),
+        };
+        if !valid {
+            self.diagnostics.error(
+                Error::new(
+                    ErrorKind::Semantic,
+                    "type-mismatch",
+                    format!("cannot apply `{}` to `{l}` and `{r}`", op.symbol()),
+                )
+                .with_span(span),
+            );
         }
     }
 

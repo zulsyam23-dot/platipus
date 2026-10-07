@@ -730,3 +730,98 @@ app Main {
     let span = error.span.expect("diagnostic should carry a span");
     assert_eq!(&source[span.start as usize..span.end as usize], "missing");
 }
+
+#[test]
+fn state_annotation_mismatch_is_an_error() {
+    assert_reports(
+        r##"
+app Main {
+    state count: Int = "hello"
+    Column { }
+}
+"##,
+        "type-mismatch",
+    );
+}
+
+#[test]
+fn state_annotation_matching_is_clean() {
+    assert_clean(
+        r##"
+app Main {
+    state count: Int = 0
+    state name: String = "x"
+    state rate: Float = 1.5
+    state ok: Bool = true
+    Column { }
+}
+"##,
+    );
+}
+
+#[test]
+fn derived_annotation_mismatch_is_an_error() {
+    assert_reports(
+        r##"
+app Main {
+    derived label: Int = "ready"
+    Column { }
+}
+"##,
+        "type-mismatch",
+    );
+}
+
+#[test]
+fn parameter_default_mismatch_is_an_error() {
+    assert_reports(
+        r##"
+app Main {
+    fn add(by: Int = "ten") {
+        count = count + by
+    }
+    Column { }
+}
+"##,
+        "type-mismatch",
+    );
+}
+
+#[test]
+fn string_annotation_accepts_strings() {
+    assert_clean(
+        r##"
+app Main {
+    state title: String = "Hi"
+    Column { }
+}
+"##,
+    );
+}
+
+#[test]
+fn arithmetic_annotations_are_accepted() {
+    assert_clean(
+        r##"
+app Main {
+    state n: Int = 2 + 3
+    state r: Float = 1.5 * 2
+    state s: String = "a" + "b"
+    Column { }
+}
+"##,
+    );
+}
+
+#[test]
+fn float_plus_string_is_not_float() {
+    assert_reports(
+        r##"
+app Main {
+    state x: Float = 1.5 + "a"
+    Column { }
+}
+"##,
+        "type-mismatch",
+    );
+}
