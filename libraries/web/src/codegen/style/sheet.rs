@@ -193,6 +193,10 @@ pub const ELEMENTS: &[(&str, &str)] = &[
         "width: 100%; padding: 7px 10px; border: 1px solid var(--plt-border); border-radius: var(--plt-radius-sm); background: var(--plt-surface); color: var(--plt-text); min-width: 0;",
     ),
     (
+        ".plt-row > input.plt-input, .plt-row > textarea.plt-textarea, .plt-row > select.plt-select",
+        "width: auto; flex: 1 1 0;",
+    ),
+    (
         "input.plt-input::placeholder, textarea.plt-textarea::placeholder",
         "color: var(--plt-muted);",
     ),
