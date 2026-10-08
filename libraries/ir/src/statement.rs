@@ -25,6 +25,24 @@ pub enum StatementKind {
         iterable: String,
         body: Vec<IrStatement>,
     },
+    /// `for i in a..b` / `for i in a..=b`: counted, not iterated.
+    ForRange {
+        binding: String,
+        start: String,
+        end: String,
+        inclusive: bool,
+        body: Vec<IrStatement>,
+    },
+    /// `let name = value`: a plain local, never reactive.
+    Let {
+        name: String,
+        value: String,
+    },
+    /// `while condition { ... }`.
+    While {
+        condition: String,
+        body: Vec<IrStatement>,
+    },
     Return(Option<String>),
     Break,
     Continue,

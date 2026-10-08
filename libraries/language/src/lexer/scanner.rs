@@ -341,6 +341,13 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_number(&mut self) {
+        if self.current == self.start + 1
+            && self.bytes[self.start] == b'0'
+            && matches!(self.peek(), b'x' | b'X' | b'b' | b'B')
+        {
+            self.scan_radix_number();
+            return;
+        }
         while !self.is_at_end() && (self.peek().is_ascii_digit() || self.peek() == b'_') {
             self.advance();
         }
@@ -392,6 +399,27 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    /// `0x…` / `0b…` literals. The leading `0` is already consumed; the radix
+    /// marker and every trailing alphanumeric character are consumed so a bad
+    /// digit never leaks out as a stray identifier.
+    fn scan_radix_number(&mut self) {
+        self.advance(); // `x` / `X` / `b` / `B`
+        while !self.is_at_end() && (self.peek().is_ascii_alphanumeric() || self.peek() == b'_') {
+            self.advance();
+        }
+        let digits = self.text().to_string();
+        let span = self.span();
+        match parse_int_literal(&digits) {
+            Ok(value) => self.tokens.push(
+                Token::new(TokenKind::IntLiteral, digits, span)
+                    .with_literal(Literal::Int(value)),
+            ),
+            Err(message) => self
+                .errors
+                .push(Error::new(ErrorKind::Lex, "invalid-int", message).with_span(span)),
+        }
+    }
+
     fn scan_identifier(&mut self) {
         while !self.is_at_end() {
             let Some(ch) = self.char_at(self.current) else {
@@ -423,31 +451,26 @@ impl<'a> Scanner<'a> {
         self.add(TokenKind::Identifier);
     }
 
+    /// Longest match wins: try 3-, then 2-, then 1-byte symbols against the
+    /// operator table so `<<=`, `..=`, `>>=` and friends are never split.
     fn scan_symbol(&mut self, byte: u8) {
         if !byte.is_ascii() {
             self.report_unknown_character();
             return;
         }
-        let mut single = String::new();
-        single.push(byte as char);
-        if is_pair_candidate(byte) {
-            let next = self.peek();
-            if next.is_ascii() {
-                let mut pair = single.clone();
-                pair.push(next as char);
-                if let Some(info) = lookup(&pair) {
-                    let symbol = info.symbol;
-                    let kind = info.kind;
-                    self.advance();
-                    self.tokens
-                        .push(Token::new(kind, symbol.to_string(), self.span()));
-                    return;
-                }
+        for length in [3usize, 2, 1] {
+            let end = self.start + length;
+            if end > self.bytes.len() || !self.bytes[self.start..end].iter().all(u8::is_ascii) {
+                continue;
             }
-        }
-        if let Some(info) = lookup(&single) {
+            // The slice is ASCII, so it is always valid UTF-8.
+            let candidate = std::str::from_utf8(&self.bytes[self.start..end]).unwrap_or("\u{0}");
+            let Some(info) = lookup(candidate) else {
+                continue;
+            };
             let symbol = info.symbol;
             let kind = info.kind;
+            self.current = end;
             self.tokens
                 .push(Token::new(kind, symbol.to_string(), self.span()));
             return;
@@ -472,13 +495,6 @@ impl<'a> Scanner<'a> {
             format!("unexpected character `{found}` in source"),
         );
     }
-}
-
-fn is_pair_candidate(byte: u8) -> bool {
-    matches!(
-        byte,
-        b'>' | b'<' | b'!' | b'=' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|'
-    )
 }
 
 pub fn strip_bom(source: &str) -> &str {

@@ -1,5 +1,5 @@
 use platipus_compiler::lexer::{
-    CONTEXTUAL_ALL, KEYWORDS, OPERATORS, Token, TokenKind, tokenize, tokenize_lossy,
+    CONTEXTUAL_ALL, KEYWORDS, OPERATORS, Literal, Token, TokenKind, tokenize, tokenize_lossy,
 };
 
 fn lexemes(tokens: &[Token]) -> Vec<&str> {
@@ -265,4 +265,153 @@ fn unterminated_rust_block_is_an_error() {
 fn unknown_attributes_are_rejected() {
     let (_, errors) = tokenize_lossy("#[foo]\nfn f() {}\n");
     assert!(errors.iter().any(|error| error.code == "unknown-attribute"));
+}
+
+fn int_values(tokens: &[Token]) -> Vec<i64> {
+    tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::IntLiteral)
+        .map(|token| match &token.literal {
+            Some(Literal::Int(value)) => *value,
+            other => panic!("expected an Int literal, got {other:?}"),
+        })
+        .collect()
+}
+
+#[test]
+fn scans_hexadecimal_and_binary_literals() {
+    let tokens = assert_scans("0xFF 0b1010 0x811c9dc5 1_000_000");
+    assert_eq!(int_values(&tokens), [255, 10, 2_166_136_261, 1_000_000]);
+    assert_eq!(
+        lexemes(&tokens),
+        ["0xFF", "0b1010", "0x811c9dc5", "1_000_000", ""]
+    );
+}
+
+#[test]
+fn radix_literal_markers_are_case_insensitive() {
+    let tokens = assert_scans("0X1f 0B11");
+    assert_eq!(int_values(&tokens), [31, 3]);
+}
+
+#[test]
+fn reports_malformed_radix_literals() {
+    for (source, code) in [
+        ("state x = 0b2", "invalid-int"),
+        ("state x = 0xG", "invalid-int"),
+        ("state x = 0x", "invalid-int"),
+        ("state x = 0b", "invalid-int"),
+        ("state x = 0xFFFFFFFFFFFFFFFFFF", "invalid-int"),
+    ] {
+        let (_, errors) = tokenize_lossy(source);
+        assert_eq!(errors.len(), 1, "{source} produced {errors:?}");
+        assert_eq!(errors[0].code, code, "{source}");
+        assert!(
+            errors[0].message.contains("literal"),
+            "diagnostic should name the literal, got {}",
+            errors[0].message
+        );
+    }
+}
+
+#[test]
+fn a_decimal_zero_followed_by_an_identifier_is_untouched() {
+    let tokens = assert_scans("0 b 0 x 1 + 0 b");
+    assert_eq!(
+        lexemes(&tokens),
+        ["0", "b", "0", "x", "1", "+", "0", "b", ""]
+    );
+    assert_eq!(int_values(&tokens), [0, 0, 1, 0]);
+}
+
+#[test]
+fn scans_range_bitwise_and_arrow_symbols() {
+    let tokens = assert_scans("0..5 1..=5 x => x n & 1 | 2 ^ 3 ~mask a << b >> c");
+    assert_eq!(
+        kinds(&tokens),
+        [
+            TokenKind::IntLiteral,
+            TokenKind::DotDot,
+            TokenKind::IntLiteral,
+            TokenKind::IntLiteral,
+            TokenKind::DotDotEqual,
+            TokenKind::IntLiteral,
+            TokenKind::Identifier,
+            TokenKind::FatArrow,
+            TokenKind::Identifier,
+            TokenKind::Identifier,
+            TokenKind::Amp,
+            TokenKind::IntLiteral,
+            TokenKind::Pipe,
+            TokenKind::IntLiteral,
+            TokenKind::Caret,
+            TokenKind::IntLiteral,
+            TokenKind::Tilde,
+            TokenKind::Identifier,
+            TokenKind::Identifier,
+            TokenKind::Shl,
+            TokenKind::Identifier,
+            TokenKind::Shr,
+            TokenKind::Identifier,
+            TokenKind::Eof,
+        ]
+    );
+}
+
+#[test]
+fn three_character_symbols_win_over_their_two_character_prefixes() {
+    let tokens = assert_scans("a >>= b <<=");
+    assert_eq!(
+        lexemes(&tokens),
+        ["a", ">>=", "b", "<<=", ""]
+    );
+    assert_eq!(tokens[1].kind, TokenKind::ShrAssign);
+    assert_eq!(tokens[3].kind, TokenKind::ShlAssign);
+}
+
+#[test]
+fn bitwise_assignments_are_distinct_from_boolean_operators() {
+    let tokens = assert_scans("& && | || ^ ~ != = > >= >> >>=");
+    assert_eq!(
+        kinds(&tokens),
+        [
+            TokenKind::Amp,
+            TokenKind::AndAnd,
+            TokenKind::Pipe,
+            TokenKind::OrOr,
+            TokenKind::Caret,
+            TokenKind::Tilde,
+            TokenKind::NotEqual,
+            TokenKind::Assign,
+            TokenKind::Greater,
+            TokenKind::GreaterEqual,
+            TokenKind::Shr,
+            TokenKind::ShrAssign,
+            TokenKind::Eof,
+        ]
+    );
+}
+
+#[test]
+fn member_access_stays_a_single_dot() {
+    let tokens = assert_scans("xs.length 1.5..2.5");
+    assert_eq!(
+        lexemes(&tokens),
+        ["xs", ".", "length", "1.5", "..", "2.5", ""]
+    );
+    assert_eq!(tokens[4].kind, TokenKind::DotDot);
+}
+
+#[test]
+fn let_and_while_scan_as_keywords() {
+    for text in ["let", "while"] {
+        let tokens = assert_scans(&format!("{text} value"));
+        assert_eq!(
+            tokens[0].kind,
+            TokenKind::Keyword,
+            "`{text}` must be a keyword"
+        );
+        assert_eq!(tokens[0].lexeme, text);
+        assert_eq!(tokens[1].kind, TokenKind::Identifier);
+    }
 }

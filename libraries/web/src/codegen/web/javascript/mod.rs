@@ -817,9 +817,30 @@ function emit(target, payload) {
     return chosen ?? fragment([]);
   }
 
+  /** A `for` head must be a list; a number is a range written in the wrong place. */
+  function iter(value) {
+    if (typeof value === "number") {
+      throw new Error(
+        "plt: a `for` loop cannot iterate over a number; write `for i in start..end`",
+      );
+    }
+    return Array.from(value ?? []);
+  }
+
+  /** `for i in a..b` in a template: the counted values, ready for `each`. */
+  function range(start, end, inclusive) {
+    const from = Number(start ?? 0);
+    const to = Number(end ?? 0);
+    const items = [];
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return items;
+    const last = inclusive ? to : to - 1;
+    for (let index = from; index <= last; index += 1) items.push(index);
+    return items;
+  }
+
   /** `for` in a template: each item becomes a keyed child. */
   function each(list, item) {
-    const items = Array.from(list ?? []);
+    const items = iter(list);
     const children = items.map((value, index) => {
       const node = item(value, index) ?? null;
       if (node) node.key = String(value?.key ?? value?.id ?? index);
@@ -1608,6 +1629,8 @@ return {
     fragment,
     branch,
     each,
+    iter,
+    range,
     twoWay,
     child,
     route,

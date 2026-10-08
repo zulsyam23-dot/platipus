@@ -1,6 +1,6 @@
 use platipus_language::ast::{
     self, AppDecl, AssignOp, BinaryOp, ComponentDecl, ComponentItem, Element, EventCategory,
-    Expression, Identifier, Program, Statement, UnaryOp,
+    Expression, ForIterable, Identifier, Program, Statement, UnaryOp,
 };
 use crate::element::ElementItem as IrElementItem;
 use crate::statement::StatementKind;
@@ -485,9 +485,37 @@ impl<'a> Lowering<'a> {
                         }
                     }),
             },
-            Statement::For(statement) => StatementKind::For {
-                binding: statement.binding.as_str().to_string(),
-                iterable: lower_expression(&statement.iterable),
+            Statement::For(statement) => {
+                let body = statement
+                    .body
+                    .statements
+                    .iter()
+                    .map(|nested| self.lower_statement(nested))
+                    .collect();
+                let binding = statement.binding.as_str().to_string();
+                match &statement.iterable {
+                    ForIterable::Value(iterable) => StatementKind::For {
+                        binding,
+                        iterable: lower_expression(iterable),
+                        body,
+                    },
+                    ForIterable::Range {
+                        start, end, inclusive, ..
+                    } => StatementKind::ForRange {
+                        binding,
+                        start: lower_expression(start),
+                        end: lower_expression(end),
+                        inclusive: *inclusive,
+                        body,
+                    },
+                }
+            }
+            Statement::Let(statement) => StatementKind::Let {
+                name: statement.name.as_str().to_string(),
+                value: lower_expression(&statement.initializer),
+            },
+            Statement::While(statement) => StatementKind::While {
+                condition: lower_expression(&statement.condition),
                 body: statement
                     .body
                     .statements
@@ -640,6 +668,7 @@ pub fn lower_expression(expression: &Expression) -> String {
         Expression::Await { operand, .. } => {
             format!("await {}", operand_at_least(operand, Prec::Postfix))
         }
+        Expression::Lambda { .. } => unimplemented!("lambda lowering"),
     }
 }
 
@@ -652,6 +681,10 @@ enum Prec {
     And,
     Equality,
     Comparison,
+    BitOr,
+    BitXor,
+    BitAnd,
+    Shift,
     Sum,
     Product,
     Unary,
@@ -668,7 +701,11 @@ impl Prec {
             Prec::Or => Prec::And,
             Prec::And => Prec::Equality,
             Prec::Equality => Prec::Comparison,
-            Prec::Comparison => Prec::Sum,
+            Prec::Comparison => Prec::BitOr,
+            Prec::BitOr => Prec::BitXor,
+            Prec::BitXor => Prec::BitAnd,
+            Prec::BitAnd => Prec::Shift,
+            Prec::Shift => Prec::Sum,
             Prec::Sum => Prec::Product,
             Prec::Product => Prec::Unary,
             Prec::Unary => Prec::Postfix,
@@ -697,6 +734,7 @@ fn precedence_of(expression: &Expression) -> Prec {
         Expression::Binary { op, .. } => binary_precedence(*op),
         Expression::Logical { op, .. } => logical_precedence(*op),
         Expression::Assign { .. } => Prec::Assign,
+        Expression::Lambda { .. } => Prec::Atomic,
     }
 }
 
@@ -715,6 +753,10 @@ fn binary_precedence(op: BinaryOp) -> Prec {
     match op {
         BinaryOp::Eq | BinaryOp::Ne => Prec::Equality,
         BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge => Prec::Comparison,
+        BinaryOp::Or => Prec::BitOr,
+        BinaryOp::Xor => Prec::BitXor,
+        BinaryOp::And => Prec::BitAnd,
+        BinaryOp::Shl | BinaryOp::Shr => Prec::Shift,
         BinaryOp::Add | BinaryOp::Sub => Prec::Sum,
         BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem => Prec::Product,
     }

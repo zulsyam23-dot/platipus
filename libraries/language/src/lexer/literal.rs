@@ -26,12 +26,29 @@ impl Literal {
 
 pub fn parse_int_literal(digits: &str) -> Result<i64, String> {
     let cleaned: String = digits.chars().filter(|c| *c != '_').collect();
-    if cleaned.is_empty() {
-        return Err("integer literal has no digits".into());
+    let (radix, body, name): (u32, &str, &str) = if let Some(rest) = cleaned
+        .strip_prefix("0x")
+        .or_else(|| cleaned.strip_prefix("0X"))
+    {
+        (16, rest, "hexadecimal")
+    } else if let Some(rest) = cleaned
+        .strip_prefix("0b")
+        .or_else(|| cleaned.strip_prefix("0B"))
+    {
+        (2, rest, "binary")
+    } else {
+        (10, cleaned.as_str(), "integer")
+    };
+    if body.is_empty() {
+        return Err(format!("{name} literal has no digits"));
     }
-    cleaned
-        .parse::<i64>()
-        .map_err(|_| format!("integer literal `{cleaned}` is out of range for Int"))
+    i64::from_str_radix(body, radix).map_err(|error| match error.kind() {
+        std::num::IntErrorKind::PosOverflow | std::num::IntErrorKind::NegOverflow => {
+            format!("{name} literal `{cleaned}` is out of range for Int")
+        }
+        _ if radix == 10 => format!("integer literal `{cleaned}` is out of range for Int"),
+        _ => format!("invalid digit in {name} literal `{cleaned}`"),
+    })
 }
 
 pub fn parse_float_literal(digits: &str) -> Result<f64, String> {

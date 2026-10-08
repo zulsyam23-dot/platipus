@@ -599,3 +599,97 @@ app Main {
     assert!(matches!(app.body[0], ElementItem::Child(_)));
     let _ = ComponentItem::State;
 }
+
+#[test]
+fn lowers_let_while_and_counted_ranges() {
+    let module = build(
+        r#"
+app Main {
+    state count = 0
+    fn run() {
+        let total = 0
+        while total < 3 {
+            total += 1
+        }
+        for i in 0..2 {
+            count += 1
+        }
+    }
+    Column { Text "x" }
+}
+"#,
+    );
+    let main = component(&module, "Main");
+    let function = main
+        .functions
+        .iter()
+        .find(|function| function.name == "run")
+        .expect("`run` must lower");
+    let kinds: Vec<&StatementKind> = function
+        .body
+        .iter()
+        .map(|statement| &statement.kind)
+        .collect();
+    assert!(
+        matches!(kinds[0], StatementKind::Let { name, .. } if name == "total"),
+        "got {:?}",
+        kinds[0]
+    );
+    assert!(matches!(kinds[1], StatementKind::While { .. }), "got {:?}", kinds[1]);
+    assert!(
+        matches!(
+            kinds[2],
+            StatementKind::ForRange {
+                inclusive: false,
+                ..
+            }
+        ),
+        "got {:?}",
+        kinds[2]
+    );
+}
+
+#[test]
+fn an_inclusive_range_lowers_as_inclusive() {
+    let module = build(
+        r#"
+app Main {
+    fn run() {
+        for i in 0..=2 {
+            emit ticked(i)
+        }
+    }
+    Column { Text "x" }
+}
+"#,
+    );
+    let main = component(&module, "Main");
+    let function = main
+        .functions
+        .iter()
+        .find(|function| function.name == "run")
+        .expect("`run` must lower");
+    assert!(
+        matches!(
+            function.body[0].kind,
+            StatementKind::ForRange {
+                inclusive: true,
+                ..
+            }
+        ),
+        "got {:?}",
+        function.body[0].kind
+    );
+}
+
+#[test]
+fn a_let_in_an_element_body_is_rejected_by_the_verifier() {
+    let module = build("app Main { Column { let x = 1 } }");
+    let errors = verify(&module).expect_err("a template cannot declare a local");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.code == "not-a-template-statement"),
+        "{errors:?}"
+    );
+}

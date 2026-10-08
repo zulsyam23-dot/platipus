@@ -1,4 +1,4 @@
-use super::expression::{AssignOp, Expression, Identifier};
+use super::expression::{AssignOp, Expression, Identifier, TypeExpr};
 use platipus_diagnostics::Span;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +29,8 @@ pub enum Statement {
     Expression(Expression),
     If(IfStatement),
     For(ForStatement),
+    Let(LetStatement),
+    While(WhileStatement),
     Return(ReturnStatement),
     Break(Span),
     Continue(Span),
@@ -52,6 +54,8 @@ impl Statement {
             Statement::Expression(expression) => expression.span(),
             Statement::If(statement) => statement.span,
             Statement::For(statement) => statement.span,
+            Statement::Let(statement) => statement.span,
+            Statement::While(statement) => statement.span,
             Statement::Return(statement) => statement.span,
             Statement::Break(span) | Statement::Continue(span) | Statement::Empty(span) => *span,
             Statement::Try(statement) => statement.span,
@@ -93,7 +97,7 @@ impl IfStatement {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForStatement {
     pub binding: Identifier,
-    pub iterable: Expression,
+    pub iterable: ForIterable,
     pub body: Block,
     pub span: Span,
 }
@@ -102,6 +106,47 @@ impl ForStatement {
     pub fn span(&self) -> Span {
         self.span
     }
+}
+
+/// What a `for` loop walks over. Only a `for` header may build a range; every
+/// other expression position rejects `..` with `range-outside-for`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForIterable {
+    /// `for item in items`
+    Value(Expression),
+    /// `for i in start..end` / `for i in start..=end`
+    Range {
+        start: Expression,
+        end: Expression,
+        inclusive: bool,
+        span: Span,
+    },
+}
+
+impl ForIterable {
+    pub fn span(&self) -> Span {
+        match self {
+            ForIterable::Value(expression) => expression.span(),
+            ForIterable::Range { span, .. } => *span,
+        }
+    }
+}
+
+/// A non-reactive local binding: `let name = value`. It is not state, so it
+/// never triggers a re-render and may not shadow an outer declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LetStatement {
+    pub name: Identifier,
+    pub annotation: Option<TypeExpr>,
+    pub initializer: Expression,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: Block,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]

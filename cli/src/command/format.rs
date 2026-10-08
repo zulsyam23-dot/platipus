@@ -176,6 +176,8 @@ fn separator(previous: &Token, token: &Token) -> &'static str {
     if previous.is(TokenKind::LeftParen)
         || previous.is(TokenKind::LeftBracket)
         || previous.is(TokenKind::Dot)
+        || previous.is(TokenKind::DotDot)
+        || previous.is(TokenKind::DotDotEqual)
         || previous.is(TokenKind::Bang)
     {
         return "";
@@ -185,6 +187,8 @@ fn separator(previous: &Token, token: &Token) -> &'static str {
         || token.is(TokenKind::Comma)
         || token.is(TokenKind::Colon)
         || token.is(TokenKind::Dot)
+        || token.is(TokenKind::DotDot)
+        || token.is(TokenKind::DotDotEqual)
         || token.is(TokenKind::LeftParen)
         || token.is(TokenKind::LeftBracket)
     {

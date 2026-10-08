@@ -45,15 +45,39 @@ fn render_kind(kind: &StatementKind, scope: &Scope) -> String {
         } => {
             let mut inner = scope.clone();
             inner.bind(binding, format!("item_{}", binding));
-            let statements: Vec<String> = body
-                .iter()
-                .map(|statement| render_statement(statement, &inner))
-                .filter(|part| !part.is_empty())
-                .collect();
             format!(
-                "for (const item_{binding} of {}) {{ {} }}",
+                "for (const item_{binding} of plt.iter({})) {{ {} }}",
                 rewrite(iterable, scope),
-                statements.join("; ")
+                block(body, &inner)
+            )
+        }
+        StatementKind::ForRange {
+            binding,
+            start,
+            end,
+            inclusive,
+            body,
+        } => {
+            let mut inner = scope.clone();
+            let counter = local_access(binding);
+            let limit = format!("{counter}__end");
+            inner.bind(binding, &counter);
+            let test = if *inclusive { "<=" } else { "<" };
+            format!(
+                "for (let {counter} = {}, {limit} = {}; {counter} {test} {limit}; {counter}++) {{ {} }}",
+                rewrite(start, scope),
+                rewrite(end, scope),
+                block(body, &inner)
+            )
+        }
+        StatementKind::Let { name, value } => {
+            format!("let {} = {}", local_access(name), rewrite(value, scope))
+        }
+        StatementKind::While { condition, body } => {
+            format!(
+                "while ({}) {{ {} }}",
+                rewrite(condition, scope),
+                block(body, scope)
             )
         }
         StatementKind::Return(value) => match value {
@@ -106,9 +130,17 @@ fn render_kind(kind: &StatementKind, scope: &Scope) -> String {
 }
 
 pub fn block(statements: &[IrStatement], scope: &Scope) -> String {
+    let mut scoped = scope.clone();
+    // Every direct `let` of this block is a JavaScript local of the same
+    // block, so bind it before any statement is rendered.
+    for statement in statements {
+        if let StatementKind::Let { name, .. } = &statement.kind {
+            scoped.bind(name, local_access(name));
+        }
+    }
     statements
         .iter()
-        .map(|statement| render_statement(statement, scope))
+        .map(|statement| render_statement(statement, &scoped))
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join("; ")

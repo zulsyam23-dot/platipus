@@ -1082,3 +1082,25 @@ yang dipakai:
     `dist` di root repository masih ada dan berisi program `Main`/`Card` yang
     tidak berasal dari test mana pun yang terdaftar; perlakukan sebagai artefak
     manual dan hapus hanya jika memang tidak dikehendaki.
+
+---
+
+## 10. Paket Kemampuan Komputasi (fase A)
+
+Status paket `fase.md` di root repository. Setiap baris hanya dinyatakan
+selesai bila `cargo test --workspace` hijau dan buktinya berupa `path:line`.
+
+| Fase | Judul | Status | Ringkasan | Bukti |
+| --- | --- | --- | --- | --- |
+| 0 | Lexer & desain | **SELESAI** | Token `..` `..=` `=>` `&` `\|` `^` `~` `<<` `>>` `&=` `\|=` `^=` `<<=` `>>=`, literal `0x`/`0b`, `Precedence` diperluas, dan perbaikan bug presedensi `binary_info` (`1 + 2 * 3` sekarang benar). | `tests/lexer/main.rs:282`, `tests/parser/main.rs:208`, `libraries/language/src/parser/expression.rs:47`, `docs/logic-design.md` |
+| 1 | `let`, `while`, loop angka | **SELESAI** | `let` blok + scope, `while`, `for i in a..b`/`..=`, `for-over-number`, `shadow-local`, `assign-to-parameter`, `plt.iter` guard. | `tests/semantic/main.rs:858`, `tests/ir/main.rs:604`, `tests/codegen/main.rs:1457` |
+| 2 | Lambda dan closure | **BAGIAN** | AST + parser selesai; IR lowering masih `unimplemented!`. | `libraries/language/src/ast/expression.rs`, `libraries/ir/src/lower.rs:671` |
+| 3 | Registry builtin + arity | **BAGIAN** | `Builtin` kini variadik + penanda `pure`; penegakan, builtin matematika, dan runtime helpers belum. | `libraries/standard/src/lib.rs:25` |
+| 4 | `fn` tingkat atas murni + impor | **BELUM** | | |
+| 5 | Operator bitwise | **BAGIAN** | Parse + lower ada (AST `And/Or/Xor/Shl/Shr`); `~` masih terpetakan ke negasi; tanpa kurung eksplisit; compound assign belum; cek tipe operand belum. | `libraries/ir/src/lower.rs:619`, `libraries/language/src/parser/expression.rs:122` |
+| 6 | Bukti penerimaan, `plt format`, dokumentasi | **BELUM** | | |
+
+Rencana lengkap, kriteria keluar, dan bukti per fase ada di `fase.md`;
+keputusan sintaks final ada di `docs/logic-design.md`.
+
+Bagian B (`platipusbrak/` — analisis + proposal Brak) belum dimulai.

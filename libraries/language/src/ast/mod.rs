@@ -14,16 +14,16 @@ pub use component::{ComponentDecl, ComponentItem, InputDecl};
 pub use element::{BindingDecl, Element, ElementBody, ElementItem, PropertyValue};
 pub use event::{EmitStatement, EventCategory, EventHandlerDecl, known, lifecycle};
 pub use expression::{
-    AssignOp, BinaryOp, Expression, Identifier, LogicalOp, ObjectEntry, PropertyKey, TypeExpr,
-    UnaryOp,
+    AssignOp, BinaryOp, Expression, Identifier, LambdaBody, LogicalOp, ObjectEntry, PropertyKey,
+    TypeExpr, UnaryOp,
 };
 pub use function::{FunctionDecl, Parameter};
 pub use rust::RustBlock;
 pub use state::collect_identifiers;
 pub use state::{DerivedDecl, StateDecl, StateKind};
 pub use statement::{
-    Assignment, Block, ElseBranch, ForStatement, IfStatement, ReturnStatement, Statement,
-    TryStatement,
+    Assignment, Block, ElseBranch, ForIterable, ForStatement, IfStatement, LetStatement,
+    ReturnStatement, Statement, TryStatement, WhileStatement,
 };
 pub use style::{
     Breakpoint, ResponsiveBlock, ResponsiveEntry, ResponsiveEntryKind, StyleBlock, StyleDefinition,

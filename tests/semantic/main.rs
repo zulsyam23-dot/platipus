@@ -825,3 +825,94 @@ app Main {
         "type-mismatch",
     );
 }
+
+const LOOPING: &str = r##"
+app Looping {
+    state count = 0
+
+    fn run(items: Any) {
+        let total = 0
+        for item in items {
+            total += 1
+        }
+        for i in 0..3 {
+            count += 1
+        }
+        while total > 0 {
+            total -= 1
+        }
+    }
+
+    Column {
+        Text "x"
+    }
+}
+"##;
+
+#[test]
+fn accepts_let_while_and_counted_ranges_inside_a_function() {
+    assert_clean(LOOPING);
+}
+
+#[test]
+fn a_let_may_not_shadow_a_declaration() {
+    assert_reports(
+        r##"
+app Shadow {
+    state total = 0
+    fn f() {
+        let total = 1
+        total = 2
+    }
+    Column { Text "x" }
+}
+"##,
+        "shadow-local",
+    );
+}
+
+#[test]
+fn a_parameter_cannot_be_assigned_to() {
+    assert_reports(
+        r##"
+app Parameter {
+    fn f(step: Int) {
+        step = 1
+    }
+    Column { Text "x" }
+}
+"##,
+        "assign-to-parameter",
+    );
+}
+
+#[test]
+fn a_for_loop_cannot_walk_a_single_number() {
+    assert_reports(
+        r##"
+app Counting {
+    fn f() {
+        for i in 10 { }
+    }
+    Column { Text "x" }
+}
+"##,
+        "for-over-number",
+    );
+}
+
+#[test]
+fn let_and_while_stay_out_of_template_positions() {
+    assert_reports(
+        "app A { let x = 1 Column { } }",
+        "statement-outside-function",
+    );
+    assert_reports(
+        "app A { while x < 1 { } Column { } }",
+        "statement-outside-function",
+    );
+    assert_reports(
+        "app A { Column { let x = 1 } }",
+        "statement-outside-function",
+    );
+}

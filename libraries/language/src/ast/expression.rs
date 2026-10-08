@@ -53,6 +53,11 @@ pub enum BinaryOp {
     Le,
     Gt,
     Ge,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
 }
 
 impl BinaryOp {
@@ -69,6 +74,11 @@ impl BinaryOp {
             BinaryOp::Le => "<=",
             BinaryOp::Gt => ">",
             BinaryOp::Ge => ">=",
+            BinaryOp::And => "&",
+            BinaryOp::Or => "|",
+            BinaryOp::Xor => "^",
+            BinaryOp::Shl => "<<",
+            BinaryOp::Shr => ">>",
         }
     }
 
@@ -83,6 +93,11 @@ impl BinaryOp {
         matches!(
             self,
             BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Shl
+                | BinaryOp::Shr
         )
     }
 }
@@ -110,6 +125,11 @@ pub enum AssignOp {
     Mul,
     Div,
     Rem,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
 }
 
 impl AssignOp {
@@ -121,6 +141,11 @@ impl AssignOp {
             AssignOp::Mul => "*=",
             AssignOp::Div => "/=",
             AssignOp::Rem => "%=",
+            AssignOp::And => "&=",
+            AssignOp::Or => "|=",
+            AssignOp::Xor => "^=",
+            AssignOp::Shl => "<<=",
+            AssignOp::Shr => ">>=",
         }
     }
 
@@ -132,6 +157,11 @@ impl AssignOp {
             AssignOp::Mul => Some(BinaryOp::Mul),
             AssignOp::Div => Some(BinaryOp::Div),
             AssignOp::Rem => Some(BinaryOp::Rem),
+            AssignOp::And => Some(BinaryOp::And),
+            AssignOp::Or => Some(BinaryOp::Or),
+            AssignOp::Xor => Some(BinaryOp::Xor),
+            AssignOp::Shl => Some(BinaryOp::Shl),
+            AssignOp::Shr => Some(BinaryOp::Shr),
         }
     }
 }
@@ -220,6 +250,22 @@ pub enum Expression {
         operand: Box<Expression>,
         span: Span,
     },
+    /// Lambda `x => x * 2` or `(a, b) => a + b` or `() => 42`. The body is
+    /// either a single expression or a block statement. See LambdaBody below.
+    Lambda {
+        parameters: Vec<Identifier>,
+        body: LambdaBody,
+        span: Span,
+    },
+}
+
+/// The body of a lambda, representing `x => <expr>` or `x => { ...; return v }`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LambdaBody {
+    /// An expression body, e.g. `x => x + 1`.
+    Expression(Box<Expression>),
+    /// A block body, e.g. `x => { let y = x + 1; return y }`.
+    Block(Box<crate::ast::statement::Block>),
 }
 
 impl Expression {
@@ -241,6 +287,7 @@ impl Expression {
             | Expression::Member { span, .. }
             | Expression::Index { span, .. }
             | Expression::Await { span, .. } => *span,
+            Expression::Lambda { span, .. } => *span,
         }
     }
 

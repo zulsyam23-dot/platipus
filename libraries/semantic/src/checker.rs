@@ -3,8 +3,8 @@ use super::scope::{ScopeKind, ScopeStack, Symbol, SymbolKind};
 use super::types::TypeRegistry;
 use platipus_language::ast::{
     Block, ComponentDecl, ComponentItem, Element, ElementItem, EmitStatement, EventHandlerDecl,
-    Expression, ForStatement, Identifier, IfStatement, Program, PropertyValue, Statement, TestStep,
-    TypeExpr,
+    Expression, ForIterable, ForStatement, Identifier, IfStatement, LetStatement, Program,
+    PropertyValue, Statement, TestStep, TypeExpr, WhileStatement,
 };
 use platipus_diagnostics::{DiagnosticBag, Error, ErrorKind, Note, Span, Warning, WarningKind};
 
@@ -15,6 +15,9 @@ pub struct SemanticChecker {
     elements: ElementRegistry,
     types: TypeRegistry,
     component_emits: Vec<(String, Vec<Identifier>)>,
+    /// True while checking a `fn` body or an event handler: `let` and `while`
+    /// are statements of executable code, never of a component template.
+    in_function: bool,
 }
 
 impl Default for SemanticChecker {
@@ -33,6 +36,7 @@ impl SemanticChecker {
             elements: ElementRegistry::new(),
             types: TypeRegistry::new(),
             component_emits: Vec::new(),
+            in_function: false,
         }
     }
 
@@ -310,13 +314,13 @@ impl SemanticChecker {
                     }
                 }
                 self.check_type(&decl.return_type);
-                self.check_block(&decl.body);
+                self.check_body(&decl.body);
                 self.scopes.pop();
             }
             ComponentItem::Handler(handler) => {
                 self.validate_handler(handler, emits);
                 self.scopes.push(ScopeKind::Function);
-                self.check_block(&handler.body);
+                self.check_body(&handler.body);
                 self.scopes.pop();
             }
             ComponentItem::Child(element) => self.check_element(element),
@@ -364,6 +368,14 @@ impl SemanticChecker {
         self.scopes.pop();
     }
 
+    /// A block that is executable code — a `fn` body or an event handler —
+    /// where `let` and `while` are legal.
+    fn check_body(&mut self, body: &Block) {
+        let previous = std::mem::replace(&mut self.in_function, true);
+        self.check_block(body);
+        self.in_function = previous;
+    }
+
     fn check_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::State(decl) => {
@@ -382,14 +394,14 @@ impl SemanticChecker {
                 for parameter in &decl.parameters {
                     self.declare(&parameter.name, SymbolKind::Parameter);
                 }
-                self.check_block(&decl.body);
+                self.check_body(&decl.body);
                 self.scopes.pop();
             }
             Statement::Element(element) => self.check_element(element),
             Statement::Handler(handler) => {
                 self.validate_handler(handler, &[]);
                 self.scopes.push(ScopeKind::Function);
-                self.check_block(&handler.body);
+                self.check_body(&handler.body);
                 self.scopes.pop();
             }
             Statement::Emit(emit) => self.check_emit(emit),
@@ -397,6 +409,8 @@ impl SemanticChecker {
             Statement::Expression(expression) => self.check_expression(expression),
             Statement::If(statement) => self.check_if(statement),
             Statement::For(statement) => self.check_for(statement),
+            Statement::Let(statement) => self.check_let(statement),
+            Statement::While(statement) => self.check_while(statement),
             Statement::Return(statement) => {
                 if let Some(value) = &statement.value {
                     self.check_expression(value);
@@ -483,7 +497,24 @@ impl SemanticChecker {
                         .with_help("inputs are provided by the parent element"),
                     );
                 }
-                Some((SymbolKind::Parameter, _)) | Some((SymbolKind::Variable, _)) => {}
+                Some((SymbolKind::Parameter, span)) => {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "assign-to-parameter",
+                            format!(
+                                "`{}` is a parameter and cannot be assigned to",
+                                identifier.name
+                            ),
+                        )
+                        .with_span(span)
+                        .with_help(format!(
+                            "copy it first with `let copy = {}`",
+                            identifier.name
+                        )),
+                    );
+                }
+                Some((SymbolKind::Variable, _)) => {}
                 Some((_, _)) => {}
             }
             return;
@@ -502,11 +533,103 @@ impl SemanticChecker {
     }
 
     fn check_for(&mut self, statement: &ForStatement) {
-        self.check_expression(&statement.iterable);
+        match &statement.iterable {
+            ForIterable::Value(iterable) => {
+                if matches!(self.infer_expr_type(iterable), Some("Int" | "Float")) {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "for-over-number",
+                            "a `for` loop cannot iterate over a single number",
+                        )
+                        .with_span(iterable.span())
+                        .with_help("use `for i in start..end { ... }` to count"),
+                    );
+                }
+                self.check_expression(iterable);
+            }
+            ForIterable::Range { start, end, .. } => {
+                self.check_expression(start);
+                self.check_expression(end);
+            }
+        }
         self.scopes.push(ScopeKind::Loop);
         self.declare(&statement.binding, SymbolKind::Variable);
         self.check_block(&statement.body);
         self.scopes.pop();
+    }
+
+    fn check_let(&mut self, statement: &LetStatement) {
+        if !self.in_function {
+            self.diagnostics.error(
+                Error::new(
+                    ErrorKind::Semantic,
+                    "statement-outside-function",
+                    "`let` is only allowed inside a `fn` or an event handler",
+                )
+                .with_span(statement.span)
+                .with_help("component bodies are templates; move the `let` into a handler"),
+            );
+        }
+        self.check_expression(&statement.initializer);
+        self.check_type(&statement.annotation);
+        self.check_annotation_matches(&statement.annotation, &statement.initializer);
+        self.report_shadow(&statement.name);
+        self.declare(&statement.name, SymbolKind::Variable);
+    }
+
+    fn check_while(&mut self, statement: &WhileStatement) {
+        if !self.in_function {
+            self.diagnostics.error(
+                Error::new(
+                    ErrorKind::Semantic,
+                    "statement-outside-function",
+                    "`while` is only allowed inside a `fn` or an event handler",
+                )
+                .with_span(statement.span)
+                .with_help("component bodies are templates; move the `while` into a handler"),
+            );
+        }
+        self.check_expression(&statement.condition);
+        self.scopes.push(ScopeKind::Loop);
+        self.check_block(&statement.body);
+        self.scopes.pop();
+    }
+
+    /// `let` may not hide a name that is already in scope; a duplicate in the
+    /// very same scope is left to `declare`, which reports it precisely.
+    fn report_shadow(&mut self, name: &Identifier) {
+        let shadowed_here = self
+            .scopes
+            .current()
+            .is_some_and(|scope| scope.lookup_local(&name.name).is_some());
+        if shadowed_here {
+            return;
+        }
+        let Some(symbol) = self.scopes.lookup(&name.name) else {
+            return;
+        };
+        if !matches!(
+            symbol.kind,
+            SymbolKind::State
+                | SymbolKind::Derived
+                | SymbolKind::Input
+                | SymbolKind::Parameter
+                | SymbolKind::Variable
+        ) {
+            return;
+        }
+        let span = symbol.span;
+        self.diagnostics.error(
+            Error::new(
+                ErrorKind::Semantic,
+                "shadow-local",
+                format!("`{}` shadows a name that is already in scope", name.name),
+            )
+            .with_span(name.span)
+            .with_note(Note::at("the other declaration is here", span))
+            .with_help("pick another name for the `let`"),
+        );
     }
 
     fn emits_of(&self, component: &str) -> Vec<Identifier> {
@@ -641,7 +764,7 @@ impl SemanticChecker {
             ElementItem::Handler(handler) => {
                 self.validate_handler(handler, owned);
                 self.scopes.push(ScopeKind::Function);
-                self.check_block(&handler.body);
+                self.check_body(&handler.body);
                 self.scopes.pop();
             }
             ElementItem::Binding(binding) => self.check_expression(&binding.target),
@@ -692,6 +815,7 @@ impl SemanticChecker {
                             _ => None,
                         }
                     }
+                    And | Or | Xor | Shl | Shr => Some("Int"),
                 }
             }
             _ => None,
@@ -760,6 +884,9 @@ impl SemanticChecker {
                 {
                     self.report_undefined(identifier);
                 }
+            }
+            Expression::Lambda { .. } => {
+                // Lambda parameters and body are checked in a dedicated pass later.
             }
             Expression::ArrayLiteral(items, _) => {
                 for item in items {

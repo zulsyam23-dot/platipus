@@ -22,16 +22,41 @@ use platipus_reactive::state::Value;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Builtin {
     pub name: &'static str,
-    pub arity: usize,
+    pub min_args: usize,
+    pub max_args: usize,
+    pub pure: bool,
 }
 
 impl Builtin {
     pub const fn new(name: &'static str, arity: usize) -> Self {
-        Self { name, arity }
+        Self {
+            name,
+            min_args: arity,
+            max_args: arity,
+            pure: true,
+        }
     }
 
-    pub fn accepts(&self, arguments: usize) -> bool {
-        arguments == self.arity
+    pub const fn variadic(name: &'static str, min_args: usize, max_args: usize, pure: bool) -> Self {
+        Self {
+            name,
+            min_args,
+            max_args,
+            pure,
+        }
+    }
+
+    pub const fn impure(name: &'static str, arity: usize) -> Self {
+        Self {
+            name,
+            min_args: arity,
+            max_args: arity,
+            pure: false,
+        }
+    }
+
+    pub const fn accepts(&self, arguments: usize) -> bool {
+        arguments >= self.min_args && arguments <= self.max_args
     }
 }
 

@@ -168,8 +168,17 @@ fn verify_component(component: &IrComponent, errors: &mut Vec<IrError>) {
                 ));
             }
         }
+        // `let` bindings live for the whole function body, so one list is
+        // threaded through every statement of the body.
+        let mut locals: Vec<String> = Vec::new();
         for statement in &function.body {
-            verify_statement(statement, component, &function.parameters, errors);
+            verify_statement(
+                statement,
+                component,
+                &function.parameters,
+                &mut locals,
+                errors,
+            );
         }
     }
     for item in &component.body {
@@ -276,7 +285,10 @@ fn verify_handler_statement(statement: &IrStatement, element: &str, errors: &mut
                 }
                 bodies.push(then_branch);
             }
-            StatementKind::For { body, .. } | StatementKind::Block(body) => bodies.push(body),
+            StatementKind::For { body, .. }
+            | StatementKind::ForRange { body, .. }
+            | StatementKind::While { body, .. }
+            | StatementKind::Block(body) => bodies.push(body),
             StatementKind::Try {
                 binding: _,
                 body,
@@ -305,11 +317,12 @@ fn verify_statement(
     statement: &IrStatement,
     component: &IrComponent,
     function_parameters: &[crate::IrInput],
+    locals: &mut Vec<String>,
     errors: &mut Vec<IrError>,
 ) {
     match &statement.kind {
         StatementKind::Assign { target, .. } => {
-            if !is_assignable(target, component, function_parameters) {
+            if !is_assignable(target, component, function_parameters, locals) {
                 errors.push(IrError::new(
                     "not-assignable",
                     format!("`{target}` cannot be assigned to"),
@@ -317,28 +330,37 @@ fn verify_statement(
                 ));
             }
         }
+        // A local is declared here, so statements after it may assign to it.
+        StatementKind::Let { name, .. } => locals.push(name.clone()),
         StatementKind::If {
             then_branch,
             else_branch,
             ..
         } => {
             for inner in then_branch {
-                verify_statement(inner, component, function_parameters, errors);
+                verify_statement(inner, component, function_parameters, locals, errors);
             }
             if let Some(else_branch) = else_branch {
                 for inner in else_branch {
-                    verify_statement(inner, component, function_parameters, errors);
+                    verify_statement(inner, component, function_parameters, locals, errors);
                 }
             }
         }
-        StatementKind::For { body, .. } => {
+        StatementKind::For { binding, body, .. }
+        | StatementKind::ForRange { binding, body, .. } => {
+            locals.push(binding.clone());
             for inner in body {
-                verify_statement(inner, component, function_parameters, errors);
+                verify_statement(inner, component, function_parameters, locals, errors);
+            }
+        }
+        StatementKind::While { body, .. } => {
+            for inner in body {
+                verify_statement(inner, component, function_parameters, locals, errors);
             }
         }
         StatementKind::Block(body) => {
             for inner in body {
-                verify_statement(inner, component, function_parameters, errors);
+                verify_statement(inner, component, function_parameters, locals, errors);
             }
         }
         StatementKind::Try {
@@ -347,7 +369,7 @@ fn verify_statement(
             handler,
         } => {
             for inner in body.iter().chain(handler.iter()) {
-                verify_statement(inner, component, function_parameters, errors);
+                verify_statement(inner, component, function_parameters, locals, errors);
             }
         }
         StatementKind::Emit { .. }
@@ -370,7 +392,10 @@ fn verify_statement(
 fn verify_bare_statement(statement: &IrStatement, errors: &mut Vec<IrError>) {
     match &statement.kind {
         // An element body is a template: only control flow may appear there.
-        StatementKind::If { .. } | StatementKind::For { .. } | StatementKind::NoOp => {}
+        StatementKind::If { .. }
+        | StatementKind::For { .. }
+        | StatementKind::ForRange { .. }
+        | StatementKind::NoOp => {}
         StatementKind::Block(_) | StatementKind::Render(_) => {}
         StatementKind::MisplacedDeclaration { kind } => errors.push(IrError::new(
             "declaration-in-body",
@@ -394,6 +419,7 @@ fn is_assignable(
     target: &str,
     component: &IrComponent,
     function_parameters: &[crate::IrInput],
+    locals: &[String],
 ) -> bool {
     let root = root_identifier(target);
     // A target with no leading identifier is malformed, never assignable.
@@ -412,13 +438,14 @@ fn is_assignable(
     if component.inputs.iter().any(|input| input.name == root) {
         return false;
     }
-    // Only an explicitly writable target may be assigned: a component state
-    // or the current function's parameter. Anything else would emit an
-    // undeclared JavaScript variable.
+    // Only an explicitly writable target may be assigned: a component state,
+    // the current function's parameter, or a `let` declared earlier in the
+    // body. Anything else would emit an undeclared JavaScript variable.
     component.states.iter().any(|state| state.name == root)
         || function_parameters
             .iter()
             .any(|parameter| parameter.name == root)
+        || locals.iter().any(|local| local == &root)
 }
 
 fn root_identifier(target: &str) -> String {

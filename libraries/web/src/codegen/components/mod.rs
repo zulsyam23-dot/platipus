@@ -531,6 +531,28 @@ fn branch_expression(statement: &IrStatement, scope: &Scope) -> Option<String> {
                 crate::codegen::state::local_access(&format!("item_{binding}")),
             ))
         }
+        StatementKind::ForRange {
+            binding,
+            start,
+            end,
+            inclusive,
+            body,
+        } => {
+            let mut inner = scope.clone();
+            let item = crate::codegen::state::local_access(&format!("item_{binding}"));
+            inner.bind(binding, &item);
+            let group = node_group(
+                &body
+                    .iter()
+                    .filter_map(|nested| branch_expression(nested, &inner))
+                    .collect::<Vec<_>>(),
+            );
+            Some(format!(
+                "plt.each(plt.range({}, {}, {inclusive}), ({item}) => {group})",
+                rewrite(start, scope),
+                rewrite(end, scope),
+            ))
+        }
         // Side effects and declarations never produce a node.
         _ => None,
     }

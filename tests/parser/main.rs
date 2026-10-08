@@ -1,4 +1,4 @@
-const COUNTER: &str = r##"
+﻿const COUNTER: &str = r##"
 app CounterApp {
 
     state count = 0
@@ -164,4 +164,212 @@ fn a_bare_component_is_not_greedy_with_the_next_sibling() {
     let source = "component C {\n    Card { padding: 4 }\n}\n\napp M {\n    Row {\n        gap: 8\n        C\n        Card { padding: 4 }\n        Text \"hi\"\n    }\n}\n";
     let outcome = platipus_compiler::parser::parse("main.plt", source);
     assert!(outcome.errors.is_empty(), "{:?}", outcome.errors);
+}
+
+/// Renders a fully-parenthesised view of an expression so precedence bugs are
+/// visible as text instead of nested `Debug` dumps.
+fn render(expression: &platipus_compiler::ast::Expression) -> String {
+    use platipus_compiler::ast::{Expression, LogicalOp};
+    match expression {
+        Expression::IntLiteral(value, _) => value.to_string(),
+        Expression::FloatLiteral(value, _) => value.to_string(),
+        Expression::BoolLiteral(value, _) => value.to_string(),
+        Expression::Identifier(name) => name.name.clone(),
+        Expression::Unary { op, operand, .. } => format!("({}{})", op.symbol(), render(operand)),
+        Expression::Binary {
+            op, left, right, ..
+        } => format!("({} {} {})", render(left), op.symbol(), render(right)),
+        Expression::Logical {
+            op, left, right, ..
+        } => {
+            let symbol = match op {
+                LogicalOp::And => "&&",
+                LogicalOp::Or => "||",
+            };
+            format!("({} {} {})", render(left), symbol, render(right))
+        }
+        other => format!("<{other:?}>"),
+    }
+}
+
+fn render_state(source: &str) -> String {
+    let outcome = platipus_compiler::parser::parse("test.plt", source);
+    assert!(outcome.errors.is_empty(), "{:?}", outcome.errors);
+    let app = outcome.program.app.expect("app");
+    match &app.body[0] {
+        platipus_compiler::ast::ComponentItem::State(decl) => {
+            render(decl.initializer.as_ref().expect("state initializer"))
+        }
+        other => panic!("expected a state declaration, got {other:?}"),
+    }
+}
+
+#[test]
+fn multiplicative_binds_tighter_than_additive() {
+    assert_eq!(render_state("app A { state x = 1 + 2 * 3 }"), "(1 + (2 * 3))");
+    assert_eq!(render_state("app A { state x = 1 * 2 + 3 }"), "((1 * 2) + 3)");
+    assert_eq!(render_state("app A { state x = 1 - 2 - 3 }"), "((1 - 2) - 3)");
+    assert_eq!(render_state("app A { state x = 12 / 3 % 4 }"), "((12 / 3) % 4)");
+}
+
+#[test]
+fn comparison_binds_tighter_than_equality() {
+    assert_eq!(
+        render_state("app A { state x = 1 + 2 == 3 }"),
+        "((1 + 2) == 3)"
+    );
+    assert_eq!(
+        render_state("app A { state x = 1 == 2 < 3 }"),
+        "(1 == (2 < 3))"
+    );
+}
+
+#[test]
+fn logical_operators_keep_boolean_precedence() {
+    assert_eq!(
+        render_state("app A { state x = true || false && false }"),
+        "(true || (false && false))"
+    );
+    assert_eq!(
+        render_state("app A { state x = a && b || c }"),
+        "((a && b) || c)"
+    );
+}
+
+#[test]
+fn unary_minus_stays_glued_to_its_operand() {
+    assert_eq!(render_state("app A { state x = -2 + 3 }"), "((-2) + 3)");
+    assert_eq!(render_state("app A { state x = -(2 + 3) }"), "(-(2 + 3))");
+}
+fn function_statements(source: &str) -> Vec<platipus_compiler::ast::Statement> {
+    let outcome = platipus_compiler::parser::parse("test.plt", source);
+    assert!(
+        outcome.errors.is_empty(),
+        "{:?}",
+        outcome.errors.iter().map(|error| error.label()).collect::<Vec<_>>()
+    );
+    let app = outcome.program.app.expect("app declaration");
+    for item in &app.body {
+        if let platipus_compiler::ast::ComponentItem::Function(decl) = item {
+            return decl.body.statements.clone();
+        }
+    }
+    panic!("expected a function in the app body");
+}
+
+#[test]
+fn parses_let_with_and_without_an_annotation() {
+    let statements =
+        function_statements("app A { fn f() { let x = 1 let total: Int = 0 } Column { } }");
+    assert_eq!(statements.len(), 2);
+    match &statements[0] {
+        platipus_compiler::ast::Statement::Let(decl) => {
+            assert_eq!(decl.name.as_str(), "x");
+            assert!(decl.annotation.is_none());
+            assert!(
+                matches!(
+                    decl.initializer,
+                    platipus_compiler::ast::Expression::IntLiteral(1, _)
+                ),
+                "got {:?}",
+                decl.initializer
+            );
+        }
+        other => panic!("expected a `let`, got {other:?}"),
+    }
+    match &statements[1] {
+        platipus_compiler::ast::Statement::Let(decl) => {
+            let annotation = decl.annotation.as_ref().expect("annotation");
+            assert_eq!(annotation.base_name(), "Int");
+        }
+        other => panic!("expected an annotated `let`, got {other:?}"),
+    }
+}
+
+#[test]
+fn let_requires_an_initializer() {
+    let errors = parse_errors("app A { fn f() { let x } Column { } }");
+    assert!(
+        errors.iter().any(|code| code == "missing-initializer"),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn parses_while_as_a_statement_with_a_block() {
+    let statements = function_statements("app A { fn f() { while x < 3 { x += 1 } } Column { } }");
+    match &statements[0] {
+        platipus_compiler::ast::Statement::While(decl) => {
+            assert!(
+                matches!(
+                    decl.condition,
+                    platipus_compiler::ast::Expression::Binary { .. }
+                ),
+                "got {:?}",
+                decl.condition
+            );
+            assert_eq!(decl.body.statements.len(), 1);
+        }
+        other => panic!("expected a `while`, got {other:?}"),
+    }
+}
+
+#[test]
+fn parses_a_counted_range_in_a_for_header() {
+    let statements = function_statements(
+        "app A { fn f() { for i in 0..10 { } for j in 0..=3 { } for item in items { } } Column { } }",
+    );
+    assert_eq!(statements.len(), 3);
+    let ranges: Vec<platipus_compiler::ast::ForIterable> = statements
+        .iter()
+        .map(|statement| match statement {
+            platipus_compiler::ast::Statement::For(for_statement) => {
+                for_statement.iterable.clone()
+            }
+            other => panic!("expected a `for`, got {other:?}"),
+        })
+        .collect();
+    match &ranges[0] {
+        platipus_compiler::ast::ForIterable::Range {
+            start,
+            end,
+            inclusive,
+            ..
+        } => {
+            assert!(matches!(start, platipus_compiler::ast::Expression::IntLiteral(0, _)));
+            assert!(matches!(end, platipus_compiler::ast::Expression::IntLiteral(10, _)));
+            assert!(!inclusive, "`0..10` is exclusive");
+        }
+        other => panic!("expected a range, got {other:?}"),
+    }
+    match &ranges[1] {
+        platipus_compiler::ast::ForIterable::Range { inclusive, .. } => {
+            assert!(inclusive, "`0..=3` is inclusive");
+        }
+        other => panic!("expected a range, got {other:?}"),
+    }
+    match &ranges[2] {
+        platipus_compiler::ast::ForIterable::Value(expression) => {
+            assert!(
+                matches!(expression, platipus_compiler::ast::Expression::Identifier(_)),
+                "got {expression:?}"
+            );
+        }
+        other => panic!("expected a plain iterable, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_range_outside_a_for_header_is_rejected() {
+    for source in [
+        "app A { state x = 0..1 Column { } }",
+        "app A { fn f() { let y = 0..1 } Column { } }",
+        "app A { fn f() { count(0..1) } Column { } }",
+    ] {
+        let errors = parse_errors(source);
+        assert!(
+            errors.iter().any(|code| code == "range-outside-for"),
+            "{source}: {errors:?}"
+        );
+    }
 }

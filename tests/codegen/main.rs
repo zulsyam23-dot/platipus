@@ -981,7 +981,7 @@ app Main {
 "#,
     );
     assert!(
-        script.contains("for (const item_item of p_items)"),
+        script.contains("for (const item_item of plt.iter(p_items))"),
         "{script}"
     );
     assert!(script.contains("if (item_item > 0)"), "{script}");
@@ -1451,4 +1451,80 @@ app Main {
 "#,
     );
     assert!(css.contains("transition: 0.3s;"), "{css}");
+}
+
+#[test]
+fn let_while_and_counted_ranges_compile_to_plain_javascript() {
+    let script = javascript(
+        r#"
+app Main {
+    state count = 0
+    fn run(items: Any) {
+        let total = 0
+        for item in items {
+            total += 1
+        }
+        for i in 0..3 {
+            count += 1
+        }
+        while total > 0 {
+            total -= 1
+        }
+    }
+    Column { Text "x" }
+}
+"#,
+    );
+    assert!(script.contains("let t_total = 0"), "{script}");
+    assert!(
+        script.contains("for (const item_item of plt.iter(p_items))"),
+        "{script}"
+    );
+    assert!(
+        script.contains("for (let t_i = 0, t_i__end = 3; t_i < t_i__end; t_i++)"),
+        "{script}"
+    );
+    assert!(script.contains("while (t_total > 0)"), "{script}");
+    assert!(script.contains("t_total += 1"), "{script}");
+    assert!(script.contains("s.count.value += 1"), "{script}");
+}
+
+#[test]
+fn a_template_range_loops_through_the_runtime_range_helper() {
+    let script = javascript(
+        r#"
+app Main {
+    Column {
+        for i in 0..4 {
+            Text "row"
+        }
+    }
+}
+"#,
+    );
+    assert!(
+        script.contains("plt.each(plt.range(0, 4, false), (t_item_i) =>"),
+        "{script}"
+    );
+}
+
+#[test]
+fn iterating_a_number_is_refused_at_runtime() {
+    let script = javascript(
+        r#"
+app Main {
+    state count = 0
+    fn run(items: Any) {
+        for item in items {
+            count += 1
+        }
+    }
+    Column { Text "x" }
+}
+"#,
+    );
+    assert!(
+        script.contains("a `for` loop cannot iterate over a number"),
+        "{script}"
+    );
 }
