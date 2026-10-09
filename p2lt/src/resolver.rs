@@ -495,7 +495,16 @@ pub fn list_installed(project: &Path) -> Result<Vec<String>, String> {
 
 fn read_manifest(dir: &Path) -> Result<Manifest, String> {
     let path = dir.join("p2lt.toml");
-    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    // A raw io error here says "the system cannot find the file specified",
+    // which is true and useless: the reader does not know whether they cloned
+    // the wrong repository or pointed at a directory that is not a package. Say
+    // which directory was checked.
+    let text = std::fs::read_to_string(&path).map_err(|error| {
+        format!(
+            "no p2lt.toml in {}: {error}",
+            dir.display()
+        )
+    })?;
     Manifest::from_toml(&text)
 }
 
