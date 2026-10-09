@@ -89,6 +89,133 @@ pub fn pow(base: &Value, exponent: &Value) -> Option<Value> {
     }
 }
 
+/// Variadic minimum: every argument must be numeric and share a kind.
+pub fn min_all(arguments: &[Value]) -> Option<Value> {
+    let mut iter = arguments.iter();
+    let first = iter.next()?.clone();
+    match first {
+        Value::Int(_) => {
+            let mut acc = first.as_int()?;
+            for argument in iter {
+                acc = acc.min(argument.as_int()?);
+            }
+            Some(Value::int(acc))
+        }
+        Value::Float(_) => {
+            let mut acc = first.as_float()?;
+            for argument in iter {
+                let value = argument.as_float()?;
+                if acc.is_nan() || value.is_nan() {
+                    return Some(Value::float(f64::NAN));
+                }
+                acc = acc.min(value);
+            }
+            Some(Value::float(acc))
+        }
+        _ => None,
+    }
+}
+
+/// Variadic maximum: every argument must be numeric and share a kind.
+pub fn max_all(arguments: &[Value]) -> Option<Value> {
+    let mut iter = arguments.iter();
+    let first = iter.next()?.clone();
+    match first {
+        Value::Int(_) => {
+            let mut acc = first.as_int()?;
+            for argument in iter {
+                acc = acc.max(argument.as_int()?);
+            }
+            Some(Value::int(acc))
+        }
+        Value::Float(_) => {
+            let mut acc = first.as_float()?;
+            for argument in iter {
+                let value = argument.as_float()?;
+                if acc.is_nan() || value.is_nan() {
+                    return Some(Value::float(f64::NAN));
+                }
+                acc = acc.max(value);
+            }
+            Some(Value::float(acc))
+        }
+        _ => None,
+    }
+}
+
+pub fn trunc(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::trunc).map(Value::float)
+}
+
+pub fn sign(value: &Value) -> Option<Value> {
+    match value {
+        Value::Int(n) => Some(Value::int(n.signum())),
+        Value::Float(f) => Some(Value::float(f.signum())),
+        _ => None,
+    }
+}
+
+pub fn log(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::ln).filter(|f| !f.is_nan()).map(Value::float)
+}
+
+pub fn log2(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::log2).filter(|f| !f.is_nan()).map(Value::float)
+}
+
+pub fn log10(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::log10).filter(|f| !f.is_nan()).map(Value::float)
+}
+
+pub fn exp(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::exp).filter(|f| f.is_finite()).map(Value::float)
+}
+
+pub fn sin(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::sin).map(Value::float)
+}
+
+pub fn cos(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::cos).map(Value::float)
+}
+
+pub fn tan(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::tan).map(Value::float)
+}
+
+pub fn atan2(y: &Value, x: &Value) -> Option<Value> {
+    Some(Value::float(y.as_float()?.atan2(x.as_float()?)))
+}
+
+pub fn hypot(a: &Value, b: &Value) -> Option<Value> {
+    Some(Value::float(a.as_float()?.hypot(b.as_float()?)))
+}
+
+pub fn cbrt(value: &Value) -> Option<Value> {
+    value.as_float().map(f64::cbrt).map(Value::float)
+}
+
+/// 32-bit wrapping multiply, mirroring `Math.imul`.
+pub fn imul(a: &Value, b: &Value) -> Option<Value> {
+    let x = a.as_int()?;
+    let y = b.as_int()?;
+    Some(Value::int((x as i32).wrapping_mul(y as i32) as i64))
+}
+
+/// Zero-extend to an unsigned 32-bit integer, like `x >>> 0`.
+pub fn u32(value: &Value) -> Option<Value> {
+    let x = value.as_int()?;
+    Some(Value::int(x as u32 as i64))
+}
+
+pub fn pi() -> Option<Value> {
+    Some(Value::float(std::f64::consts::PI))
+}
+
+pub fn e() -> Option<Value> {
+    Some(Value::float(std::f64::consts::E))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

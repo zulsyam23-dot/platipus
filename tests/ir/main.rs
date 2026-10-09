@@ -211,7 +211,7 @@ app Main {
 }
 "##,
     );
-    let lowering = Lowering::new(Vec::new());
+    let lowering = Lowering::new(Vec::new(), Vec::new());
     assert!(!lowering.is_component("Column"));
     assert!(!lowering.is_component("Unknown"));
     assert!(module.components.len() == 1);
@@ -544,10 +544,13 @@ app Main {
 }
 
 #[test]
-fn the_verifier_reports_a_module_without_an_app() {
-    let outcome = parse("test.plt", "component Lonely { Column { } }");
+fn a_pure_function_library_lowers_without_an_app() {
+    let outcome = parse("algorithms.plt", "fn identity(value: Int) -> Int { return value }");
     assert!(outcome.errors.is_empty());
-    assert!(lower_program(&outcome.program).is_none());
+    let module = lower_program(&outcome.program).expect("library functions should lower");
+    assert!(module.components.is_empty());
+    assert_eq!(module.functions.len(), 1);
+    assert!(verify(&module).is_ok());
 }
 
 #[test]
@@ -692,4 +695,39 @@ fn a_let_in_an_element_body_is_rejected_by_the_verifier() {
             .any(|error| error.code == "not-a-template-statement"),
         "{errors:?}"
     );
+}
+
+#[test]
+fn a_lambda_lowers_to_an_arrow_with_renamed_parameters() {
+    let module = build(
+        r#"
+app Main {
+    fn run() {
+        let f = x => x * 2
+        let g = (a, b) => a + b
+    }
+    Column { Text "x" }
+}
+"#,
+    );
+    let main = component(&module, "Main");
+    let function = main
+        .functions
+        .iter()
+        .find(|function| function.name == "run")
+        .expect("`run` must lower");
+    match &function.body[0].kind {
+        StatementKind::Let { value, .. } => {
+            assert!(value.contains("=>"), "{value}");
+            assert!(value.contains("l0_x"), "{value}");
+        }
+        other => panic!("expected a `let`, got {:?}", other),
+    }
+    match &function.body[1].kind {
+        StatementKind::Let { value, .. } => {
+            assert!(value.contains("l1_a"), "{value}");
+            assert!(value.contains("l1_b"), "{value}");
+        }
+        other => panic!("expected a `let`, got {:?}", other),
+    }
 }

@@ -18,7 +18,8 @@ COMMANDS:
     init                 create p2lt.toml, src/main.plt, .gitignore
     pack                 bundle the project into <name>-<version>.libplt
     validate <file>      check a .libplt archive
-    install <name>       install a package from the local registry
+    add <source>         add a registry package or github.com/owner/repo
+    install <name>       install a package by registry name or local archive
     remove <name>        remove a package and update the manifest + lockfile
     update               refresh all dependencies from the registry
     list                 list installed dependencies
@@ -30,8 +31,9 @@ COMMANDS:
     logout               remove the stored credential stamp
     clean                remove target/ and dist/
 
-The registry is a directory of packages: $P2LT_REGISTRY or
-<project>/.p2lt/registry. Set P2LT_REGISTRY to share one registry.
+Set P2LT_REGISTRY_URL to use an HTTP(S) registry; otherwise the local registry
+directory is used ($P2LT_REGISTRY or the Platipus store). HTTP registries expose
+/index.txt and /packages/<name>.libplt; publishing uses PUT to the archive path.
 "
 }
 
@@ -64,11 +66,15 @@ pub fn run(args: &[String]) -> Result<(), String> {
             println!("valid: {} {}", manifest.name, manifest.version);
             Ok(())
         }),
-        "install" => with_arg(args, "install <name>", |name| {
-            resolver::install(&project, name)?;
-            println!("installed {name}");
-            Ok(())
-        }),
+        "add" | "install" => with_arg(
+            args,
+            "add <registry-name|github.com/owner/repo|file.libplt>",
+            |name| {
+                resolver::install(&project, name)?;
+                println!("installed {name}");
+                Ok(())
+            },
+        ),
         "remove" => with_arg(args, "remove <name>", |name| {
             resolver::remove(&project, name)?;
             println!("removed {name}");
@@ -91,8 +97,14 @@ pub fn run(args: &[String]) -> Result<(), String> {
             Ok(())
         }
         "search" => with_arg(args, "search <query>", |query| {
-            let registry = Registry::for_project(&project);
-            let matches = registry.search(query);
+            let names = match Registry::http_list()? {
+                Some(names) => names,
+                None => Registry::for_project(&project).list(),
+            };
+            let matches: Vec<_> = names
+                .into_iter()
+                .filter(|name| name.contains(query))
+                .collect();
             if matches.is_empty() {
                 println!("no packages match `{query}`");
             } else {
@@ -106,7 +118,10 @@ pub fn run(args: &[String]) -> Result<(), String> {
         "run" => {
             build(&project)?;
             println!();
-            println!("serve {} with any static file server", project.join("dist").display());
+            println!(
+                "serve {} with any static file server",
+                project.join("dist").display()
+            );
             Ok(())
         }
         "publish" => publish(&project),
@@ -136,11 +151,15 @@ pub fn run_from_args(project: &Path, args: &[String]) -> Result<(), String> {
             println!("valid: {} {}", manifest.name, manifest.version);
             Ok(())
         }
-        Some("install") => with_arg(args, "install <name>", |name| {
-            resolver::install(project, name)?;
-            println!("installed {name}");
-            Ok(())
-        }),
+        Some("add" | "install") => with_arg(
+            args,
+            "add <registry-name|github.com/owner/repo|file.libplt>",
+            |name| {
+                resolver::install(project, name)?;
+                println!("installed {name}");
+                Ok(())
+            },
+        ),
         Some("remove") => with_arg(args, "remove <name>", |name| {
             resolver::remove(project, name)?;
             println!("removed {name}");
@@ -161,6 +180,20 @@ pub fn run_from_args(project: &Path, args: &[String]) -> Result<(), String> {
         Some("build") => build(project),
         Some("clean") => clean(project),
         Some("publish") => publish(project),
+        Some("search") => with_arg(args, "search <query>", |query| {
+            let names = match Registry::http_list()? {
+                Some(names) => names,
+                None => Registry::for_project(project).list(),
+            };
+            let matches: Vec<_> = names
+                .into_iter()
+                .filter(|name| name.contains(query))
+                .collect();
+            for name in matches {
+                println!("{name}");
+            }
+            Ok(())
+        }),
         _ => Err("unsupported command in run_from_args".into()),
     }
 }
@@ -169,7 +202,9 @@ fn with_arg<F>(args: &[String], usage: &str, f: F) -> Result<(), String>
 where
     F: FnOnce(&str) -> Result<(), String>,
 {
-    let name = args.get(1).ok_or_else(|| format!("p2lt: expected `{usage}`"))?;
+    let name = args
+        .get(1)
+        .ok_or_else(|| format!("p2lt: expected `{usage}`"))?;
     f(name)
 }
 
@@ -191,8 +226,7 @@ fn init(project: &Path) -> Result<(), String> {
         format!("app Main {{\n    Column {{\n        Text \"Hello from {name}\"\n    }}\n}}\n"),
     )
     .map_err(|e| e.to_string())?;
-    std::fs::write(project.join(".gitignore"), "target/\ndist/\n")
-        .map_err(|e| e.to_string())?;
+    std::fs::write(project.join(".gitignore"), "target/\ndist/\n").map_err(|e| e.to_string())?;
     std::fs::create_dir_all(project.join("tests")).map_err(|e| e.to_string())?;
     println!("initialized {name}");
     Ok(())
@@ -206,11 +240,12 @@ fn build(project: &Path) -> Result<(), String> {
     let source = std::fs::read_to_string(&entry).map_err(|e| e.to_string())?;
     let label = entry.display().to_string();
     let loader = crate::cache::StoreLoader::new();
-    let rust_dependencies =
-        crate::manifest::Manifest::from_toml(&std::fs::read_to_string(project.join("p2lt.toml")).map_err(|e| e.to_string())?)?
-            .rust_dependencies
-            .into_iter()
-            .collect::<Vec<_>>();
+    let rust_dependencies = crate::manifest::Manifest::from_toml(
+        &std::fs::read_to_string(project.join("p2lt.toml")).map_err(|e| e.to_string())?,
+    )?
+    .rust_dependencies
+    .into_iter()
+    .collect::<Vec<_>>();
     let rust = platipus_compiler::pipeline::RustBuild {
         workdir: project.to_path_buf(),
         mode: platipus_compiler::rust::RustMode::Build,
@@ -257,11 +292,34 @@ fn build(project: &Path) -> Result<(), String> {
 }
 
 fn publish(project: &Path) -> Result<(), String> {
-    let manifest = Manifest::from_toml(&std::fs::read_to_string(project.join("p2lt.toml")).map_err(|e| e.to_string())?)?;
+    let manifest = Manifest::from_toml(
+        &std::fs::read_to_string(project.join("p2lt.toml")).map_err(|e| e.to_string())?,
+    )?;
     let src = project.join("src");
     if !src.join("lib.plt").exists() && !src.join("main.plt").exists() {
         return Err("nothing to publish: src/lib.plt missing".into());
     }
+    crate::registry::validate_package_name(&manifest.name)?;
+    if let Some(registry_url) = Registry::http_url() {
+        let temp = std::env::temp_dir().join(format!(
+            "p2lt-publish-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|error| error.to_string())?
+                .as_nanos()
+        ));
+        std::fs::create_dir(&temp).map_err(|error| error.to_string())?;
+        let result = (|| {
+            let archive = crate::package::pack(project, &temp)?;
+            Registry::http_publish_to(&registry_url, &manifest.name, &archive)
+        })();
+        let _ = std::fs::remove_dir_all(&temp);
+        result?;
+        println!("published {} to {}", manifest.name, registry_url);
+        return Ok(());
+    }
+
     let registry = Registry::for_project(project);
     let dest = registry.root.join(&manifest.name);
     if dest.exists() {
@@ -270,7 +328,15 @@ fn publish(project: &Path) -> Result<(), String> {
     std::fs::create_dir_all(&registry.root).map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
     // Copy only the package payload, never build artifacts or the registry.
-    for entry in ["p2lt.toml", "p2lt.lock", "src", "assets", "rust", "tests", "README.md"] {
+    for entry in [
+        "p2lt.toml",
+        "p2lt.lock",
+        "src",
+        "assets",
+        "rust",
+        "tests",
+        "README.md",
+    ] {
         let from = project.join(entry);
         if from.exists() {
             let to = dest.join(entry);

@@ -26,6 +26,7 @@ const HARNESSES: &[Harness] = &[
     Harness { script: "runtime.mjs", fixture: "fixtures/runtime.plt" },
     Harness { script: "ui.mjs", fixture: "fixtures/ui.plt" },
     Harness { script: "components.mjs", fixture: "fixtures/components.plt" },
+    Harness { script: "lambda.mjs", fixture: "fixtures/lambda.plt" },
     Harness { script: "showcase.mjs", fixture: "../../examples/showcase/main.plt" },
 ];
 

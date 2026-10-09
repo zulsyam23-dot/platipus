@@ -119,7 +119,7 @@ fn parse_unary(parser: &mut Parser) -> Expression {
             let op = match parser.advance().kind {
                 TokenKind::Bang => UnaryOp::Not,
                 TokenKind::Minus => UnaryOp::Negate,
-                TokenKind::Tilde => UnaryOp::Negate,
+                TokenKind::Tilde => UnaryOp::BitNot,
                 _ => UnaryOp::Negate,
             };
             let operand = parse_unary(parser);
@@ -241,8 +241,50 @@ fn parse_primary(parser: &mut Parser) -> Expression {
                 parser.push_error("unexpected-token", "expected \"=>\" after ()", end);
                 return Expression::NullLiteral(platipus_diagnostics::Span::new(start, end.end));
             }
+            // `(a, b) => ...` and `(x) => ...` are lambdas too; try a
+            // parenthesized identifier list first and fall back to a plain
+            // parenthesized expression when the arrow is missing.
+            let checkpoint = parser.checkpoint();
+            let mut params = Vec::new();
+            loop {
+                if parser.check(TokenKind::Identifier) {
+                    let token = parser.advance();
+                    params.push(Identifier::new(token.lexeme.clone(), token.span));
+                } else {
+                    break;
+                }
+                if parser.check(TokenKind::Comma) {
+                    parser.advance();
+                } else {
+                    break;
+                }
+            }
+            if !params.is_empty() && parser.check(TokenKind::RightParen) && matches!(parser.peek_next().kind, TokenKind::FatArrow) {
+                parser.advance();
+                parser.advance();
+                let body = parse_lambda_body(parser);
+                let span = platipus_diagnostics::Span::new(start, body.span().end);
+                return Expression::Lambda {
+                    parameters: params,
+                    body,
+                    span,
+                };
+            }
+            parser.restore(checkpoint);
             let inner = parse_expression(parser);
             parser.consume(TokenKind::RightParen, ")").ok();
+            if matches!(parser.peek().kind, TokenKind::FatArrow) {
+                if let Expression::Identifier(name) = inner {
+                    parser.advance();
+                    let body = parse_lambda_body(parser);
+                    let span = platipus_diagnostics::Span::new(start, body.span().end);
+                    return Expression::Lambda {
+                        parameters: vec![name],
+                        body,
+                        span,
+                    };
+                }
+            }
             inner
         }
         TokenKind::Identifier => {

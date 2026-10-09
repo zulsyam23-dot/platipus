@@ -90,9 +90,12 @@ pub fn bind_builtins(scope: &mut Scope) {
 }
 
 /// Builds the name resolution scope for a component body.
-pub fn scope_for(component: &IrComponent) -> Scope {
+pub fn scope_for(component: &IrComponent, module: &platipus_ir::IrModule) -> Scope {
     let mut scope = Scope::new();
     bind_builtins(&mut scope);
+    for function in &module.functions {
+        scope.bind(&function.name, function_access(&function.name));
+    }
     for input in &component.inputs {
         scope.bind(&input.name, input_access(&input.name));
     }

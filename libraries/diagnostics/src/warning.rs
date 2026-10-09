@@ -15,6 +15,7 @@ pub enum WarningKind {
     MissingKey,
     Performance,
     Deprecated,
+    NonBoolCondition,
 }
 
 impl WarningKind {
@@ -31,6 +32,7 @@ impl WarningKind {
             WarningKind::MissingKey => "missing-key",
             WarningKind::Performance => "performance",
             WarningKind::Deprecated => "deprecated",
+            WarningKind::NonBoolCondition => "non-bool-condition",
         }
     }
 }

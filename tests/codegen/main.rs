@@ -1528,3 +1528,23 @@ app Main {
         "{script}"
     );
 }
+
+#[test]
+fn a_lambda_compiles_to_a_plain_arrow_function() {
+    let script = javascript(
+        r#"
+app Main {
+    state count = 0
+    fn bump() {
+        let f = x => x * 2
+        let g = (a, b) => a + b
+        count = f(3) + g(1, 2)
+    }
+    Column { Text "x" }
+}
+"#,
+    );
+    assert!(script.contains("let t_f = (l0_x) => l0_x * 2"), "{script}");
+    assert!(script.contains("let t_g = (l1_a, l1_b) => l1_a + l1_b"), "{script}");
+    assert!(script.contains("s.count.value = t_f(3) + t_g(1, 2)"), "{script}");
+}

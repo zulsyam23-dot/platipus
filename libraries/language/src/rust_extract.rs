@@ -37,20 +37,18 @@ pub fn extract_rust(program: &Program) -> Result<Option<RustExtraction>, Diagnos
         if block.is_exported_all() {
             // Every top-level fn is exported.
             for off in find_top_level_fns(&source) {
-                match parse_fn_signature(&source, off) {
-                    Some(ExportDraft::Signature(name, params, return_type, sig_end)) => {
-                        block_exports.push(RustExport {
-                            name: name.clone(),
-                            params: params.clone(),
-                            return_type: return_type.clone(),
-                            impl_name: format!("__plt_impl_{name}"),
-                            source_offset: off,
-                            plt_offset: block.source_start as usize + off,
-                            wasm_name: None,
-                        });
-                        let _ = sig_end;
-                    }
-                    _ => {}
+                if let Some(ExportDraft::Signature(name, params, return_type)) =
+                    parse_fn_signature(&source, off)
+                {
+                    block_exports.push(RustExport {
+                        name: name.clone(),
+                        params,
+                        return_type,
+                        impl_name: format!("__plt_impl_{name}"),
+                        source_offset: off,
+                        plt_offset: block.source_start as usize + off,
+                        wasm_name: None,
+                    });
                 }
             }
         } else {
@@ -63,7 +61,7 @@ pub fn extract_rust(program: &Program) -> Result<Option<RustExtraction>, Diagnos
                 match find_fn_after_ws(remainder) {
                     Some(fn_pos) => {
                         match parse_fn_signature(&source, marker_end + fn_pos) {
-                            Some(ExportDraft::Signature(name, params, return_type, _)) => {
+                            Some(ExportDraft::Signature(name, params, return_type)) => {
                                 block_exports.push(RustExport {
                                     name,
                                     params,
@@ -176,7 +174,7 @@ pub fn extract_rust(program: &Program) -> Result<Option<RustExtraction>, Diagnos
 }
 
 enum ExportDraft {
-    Signature(String, Vec<(String, String)>, Option<String>, usize),
+    Signature(String, Vec<(String, String)>, Option<String>),
     NotFn,
 }
 
@@ -259,9 +257,7 @@ fn parse_fn_signature(source: &str, fn_pos: usize) -> Option<ExportDraft> {
         if part == "self" || part.starts_with("&self") || part.starts_with("mut self") {
             return None;
         }
-        let Some((name, ty)) = part.split_once(':') else {
-            return None;
-        };
+        let (name, ty) = part.split_once(':')?;
         params.push((name.trim().to_string(), ty.trim().to_string()));
     }
     let after_paren = rest[end_paren + 1..].trim_start();
@@ -274,7 +270,7 @@ fn parse_fn_signature(source: &str, fn_pos: usize) -> Option<ExportDraft> {
     } else {
         None
     };
-    Some(ExportDraft::Signature(name, params, return_type, fn_pos + end_paren + 1))
+    Some(ExportDraft::Signature(name, params, return_type))
 }
 
 fn split_top_level(text: &str, sep: char) -> Vec<&str> {

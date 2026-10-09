@@ -27,6 +27,31 @@ pub fn render(module: &IrModule) -> String {
     out.push_str("// Each test gets a fresh mount, so one test cannot leave state behind for\n");
     out.push_str("// the next. `s` and `d` are the scope the expectations were rewritten\n");
     out.push_str("// against, and the mount rebinds them.\n");
+    if module.components.is_empty() && !module.functions.is_empty() {
+        let mut scope = crate::codegen::expression::Scope::new();
+        crate::codegen::state::bind_builtins(&mut scope);
+        for function in &module.functions {
+            scope.bind(&function.name, &function.name);
+        }
+        out.push_str("// A library module has no component to mount; the expectations call the\n");
+        out.push_str("// exported functions directly.\n");
+        out.push_str("const plt = program.__plt;\n");
+        for function in &module.functions {
+            out.push_str(&format!("const {} = program.{};\n", function.name, function.name));
+        }
+        out.push('\n');
+        out.push_str("async function main(tests) {\n");
+        out.push_str(LIBRARY_RUNNER_BODY);
+        out.push_str("}\n\n");
+        out.push_str("const tests = [\n");
+        for test in &module.tests {
+            render_test(&mut out, test, Some(&scope));
+        }
+        out.push_str("];\n\n");
+        out.push_str("await main(tests);\n");
+        return out;
+    }
+
     out.push_str("let s, d;\n");
     out.push_str("function mount() {\n");
     out.push_str("  const target = new dom.Element(\"div\");\n");
@@ -41,7 +66,7 @@ pub fn render(module: &IrModule) -> String {
     out.push_str(RUNNER_HELPERS);
     out.push('\n');
     out.push_str("const tests = [\n");
-    let scope = module.components.first().map(scope_for);
+    let scope = module.components.first().map(|component| scope_for(component, module));
     for test in &module.tests {
         render_test(&mut out, test, scope.as_ref());
     }
@@ -112,6 +137,28 @@ if (tests.length === 0) console.log("no tests declared");
 console.log(`\n${tests.length - failed} passed, ${failed} failed`);
 // The code is set rather than `process.exit` called, because exiting outright
 // drops whatever stdout has not been flushed yet when it is a pipe.
+if (failed > 0) process.exitCode = 1;
+"#;
+
+/// The runner used when a module has no component. Expectations call the
+/// exported functions directly, so there is no mount step and no DOM needed.
+const LIBRARY_RUNNER_BODY: &str = r#"let failed = 0;
+for (const test of tests) {
+  try {
+    for (const step of test.steps) {
+      if (step.kind === "action") throw new Error(`unknown test action ${JSON.stringify(step.name)}`);
+      else if (!step.check()) {
+        throw new Error(`expected ${step.source} to hold`);
+      }
+    }
+    console.log(`ok   ${test.name}`);
+  } catch (error) {
+    failed += 1;
+    console.log(`FAIL ${test.name}`);
+    console.log(`     ${error.message}`);
+  }
+}
+console.log(`\n${tests.length - failed} passed, ${failed} failed`);
 if (failed > 0) process.exitCode = 1;
 "#;
 

@@ -1,6 +1,7 @@
 use super::Parser;
 use crate::ast::{ApiDecl, ApiMethod, AppDecl, ImportDecl, Program, TestDecl, TestStep};
 use crate::lexer::{ContextualKeyword, Keyword, TokenKind};
+use super::function;
 
 pub fn parse_program(parser: &mut Parser) -> Program {
     let mut program = Program::new(parser.source_name());
@@ -55,6 +56,12 @@ fn parse_top_level(parser: &mut Parser, program: &mut Program) {
     }
     if parser.check_keyword(Keyword::Import) {
         program.imports.extend(parse_import(parser));
+        return;
+    }
+    if parser.check_keyword(Keyword::Fn) || parser.check_keyword(Keyword::Async) {
+        if let Some(decl) = function::try_parse_function(parser) {
+            program.functions.push(decl);
+        }
         return;
     }
     if parser.check_keyword(Keyword::Test) {
@@ -115,25 +122,44 @@ pub fn parse_app(parser: &mut Parser) -> Option<AppDecl> {
     })
 }
 
-pub fn parse_import(parser: &mut Parser) -> Option<ImportDecl> {
+pub fn parse_import(parser: &mut Parser) -> Vec<ImportDecl> {
     parser.advance();
     let start = parser.previous().span.start;
-    let name = identifier(parser, "an imported name")?;
-    if parser.consume_keyword(Keyword::From).is_err() {
-        return None;
+    let mut names = Vec::new();
+    if let Some(name) = identifier(parser, "an imported name") {
+        names.push(name);
+        while parser.match_token(TokenKind::Comma) {
+            match identifier(parser, "an imported name") {
+                Some(name) => names.push(name),
+                None => break,
+            }
+        }
     }
-    let path = string_literal(parser)?;
+    if parser.consume_keyword(Keyword::From).is_err() {
+        return Vec::new();
+    }
+    let Some(path) = string_literal(parser) else {
+        return Vec::new();
+    };
     let span = platipus_diagnostics::Span::new(start, parser.previous().span.end);
-    Some(ImportDecl { name, path, span })
+    names
+        .into_iter()
+        .map(|name| ImportDecl {
+            name,
+            path: path.clone(),
+            span,
+        })
+        .collect()
 }
 
 pub fn parse_imports(parser: &mut Parser) -> Vec<ImportDecl> {
     let mut imports = Vec::new();
     while parser.check_keyword(Keyword::Import) {
-        let Some(decl) = parse_import(parser) else {
+        let decls = parse_import(parser);
+        if decls.is_empty() {
             break;
-        };
-        imports.push(decl);
+        }
+        imports.extend(decls);
     }
     imports
 }

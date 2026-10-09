@@ -29,6 +29,7 @@ impl std::fmt::Display for Identifier {
 pub enum UnaryOp {
     Negate,
     Not,
+    BitNot,
 }
 
 impl UnaryOp {
@@ -36,6 +37,7 @@ impl UnaryOp {
         match self {
             UnaryOp::Negate => "-",
             UnaryOp::Not => "!",
+            UnaryOp::BitNot => "~",
         }
     }
 }

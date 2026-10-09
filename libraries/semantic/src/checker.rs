@@ -5,6 +5,7 @@ use platipus_language::ast::{
     Block, ComponentDecl, ComponentItem, Element, ElementItem, EmitStatement, EventHandlerDecl,
     Expression, ForIterable, ForStatement, Identifier, IfStatement, LetStatement, Program,
     PropertyValue, Statement, TestStep, TypeExpr, WhileStatement,
+    LambdaBody,
 };
 use platipus_diagnostics::{DiagnosticBag, Error, ErrorKind, Note, Span, Warning, WarningKind};
 
@@ -18,6 +19,22 @@ pub struct SemanticChecker {
     /// True while checking a `fn` body or an event handler: `let` and `while`
     /// are statements of executable code, never of a component template.
     in_function: bool,
+    /// `fn` declarations by name, with their parameter signatures, so calls
+    /// can be arity-checked and argument types checked against annotations.
+    fn_signatures: std::collections::HashMap<String, Vec<FnSignature>>,
+    /// True while checking a top-level `fn` body, which must be pure.
+    in_pure_fn: bool,
+}
+
+/// A declared function's parameter signature: how many arguments it needs
+/// (`min..=max`, minding parameters with defaults) and each parameter's
+/// optional type annotation.
+#[derive(Debug, Clone)]
+struct FnSignature {
+    min: usize,
+    max: usize,
+    params: Vec<Option<TypeExpr>>,
+    span: Span,
 }
 
 impl Default for SemanticChecker {
@@ -37,19 +54,53 @@ impl SemanticChecker {
             types: TypeRegistry::new(),
             component_emits: Vec::new(),
             in_function: false,
+            fn_signatures: std::collections::HashMap::new(),
+            in_pure_fn: false,
         }
     }
 
     pub fn check(&mut self, program: &Program) -> DiagnosticBag {
         self.declare_components(program);
         self.declare_rust_exports(program);
+        self.declare_top_level_functions(program);
         self.check_unique_declarations(program);
         self.check_components(program);
         self.check_app(program);
         self.check_apis(program);
         self.check_imports(program);
         self.check_tests(program);
+        self.check_top_level_functions(program);
         self.diagnostics.clone()
+    }
+
+    /// Top-level `fn` declarations are hoisted: every name is visible in the
+    /// global scope before any body is checked, so mutual recursion checks.
+    fn declare_top_level_functions(&mut self, program: &Program) {
+        for decl in &program.functions {
+            self.declare(&decl.name, SymbolKind::Function);
+            self.register_fn_signature(decl);
+        }
+    }
+
+    /// Top-level `fn` bodies are checked under the purity contract: no
+    /// component state, no emission, no elements, and only pure builtins.
+    fn check_top_level_functions(&mut self, program: &Program) {
+        for decl in &program.functions {
+            let previous = std::mem::replace(&mut self.in_pure_fn, true);
+            self.scopes.push(ScopeKind::Function);
+            for parameter in &decl.parameters {
+                self.declare(&parameter.name, SymbolKind::Parameter);
+                self.check_type(&parameter.type_annotation);
+                if let Some(default) = &parameter.default {
+                    self.check_expression(default);
+                    self.check_annotation_matches(&parameter.type_annotation, default);
+                }
+            }
+            self.check_type(&decl.return_type);
+            self.check_body(&decl.body);
+            self.scopes.pop();
+            self.in_pure_fn = previous;
+        }
     }
 
     /// Rust functions exported with `#[export]` are ordinary global function
@@ -304,6 +355,7 @@ impl SemanticChecker {
             }
             ComponentItem::Function(decl) => {
                 self.declare(&decl.name, SymbolKind::Function);
+                self.register_fn_signature(decl);
                 self.scopes.push(ScopeKind::Function);
                 for parameter in &decl.parameters {
                     self.declare(&parameter.name, SymbolKind::Parameter);
@@ -379,17 +431,40 @@ impl SemanticChecker {
     fn check_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::State(decl) => {
+                if self.in_pure_fn {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "pure-fn-uses-state",
+                            format!("top-level `fn` cannot declare `state` (`{}`)", decl.name.as_str()),
+                        )
+                        .with_span(decl.span)
+                        .with_help("state belongs to a component; top-level `fn` works on arguments only"),
+                    );
+                }
                 self.declare(&decl.name, SymbolKind::State);
                 if let Some(initializer) = &decl.initializer {
                     self.check_expression(initializer);
                 }
             }
             Statement::Derived(decl) => {
+                if self.in_pure_fn {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "pure-fn-uses-state",
+                            format!("top-level `fn` cannot declare `derived` (`{}`)", decl.name.as_str()),
+                        )
+                        .with_span(decl.span)
+                        .with_help("derived values belong to a component; top-level `fn` works on arguments only"),
+                    );
+                }
                 self.declare(&decl.name, SymbolKind::Derived);
                 self.check_expression(&decl.value);
             }
             Statement::Function(decl) => {
                 self.declare(&decl.name, SymbolKind::Function);
+                self.register_fn_signature(decl);
                 self.scopes.push(ScopeKind::Function);
                 for parameter in &decl.parameters {
                     self.declare(&parameter.name, SymbolKind::Parameter);
@@ -404,7 +479,20 @@ impl SemanticChecker {
                 self.check_body(&handler.body);
                 self.scopes.pop();
             }
-            Statement::Emit(emit) => self.check_emit(emit),
+            Statement::Emit(emit) => {
+                if self.in_pure_fn {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "impure-call-in-pure-fn",
+                            "`emit` cannot be used inside a top-level `fn`".to_string(),
+                        )
+                        .with_span(emit.name.span)
+                        .with_help("top-level `fn` bodies must be pure; move side effects into a component handler"),
+                    );
+                }
+                self.check_emit(emit);
+            }
             Statement::Assignment(assignment) => self.check_assignment(assignment),
             Statement::Expression(expression) => self.check_expression(expression),
             Statement::If(statement) => self.check_if(statement),
@@ -522,8 +610,27 @@ impl SemanticChecker {
         self.check_expression(&assignment.target);
     }
 
+    /// Warns when the condition's static type is clearly not `Bool`;
+    /// unknown types stay silent so truthiness-dependent code keeps working.
+    fn check_condition(&mut self, condition: &platipus_language::ast::Expression) {
+        let Some(ty) = self.infer_expr_type(condition) else {
+            return;
+        };
+        if ty != "Bool" {
+            self.diagnostics.warning(
+                Warning::new(
+                    WarningKind::NonBoolCondition,
+                    format!("condition has type `{ty}`, not `Bool`"),
+                )
+                .with_span(condition.span())
+                .with_help("compare explicitly, e.g. `x > 0`"),
+            );
+        }
+    }
+
     fn check_if(&mut self, statement: &IfStatement) {
         self.check_expression(&statement.condition);
+        self.check_condition(&statement.condition);
         self.check_block(&statement.then_branch);
         match statement.else_branch.as_deref() {
             Some(platipus_language::ast::ElseBranch::Block(block)) => self.check_block(block),
@@ -591,6 +698,7 @@ impl SemanticChecker {
             );
         }
         self.check_expression(&statement.condition);
+        self.check_condition(&statement.condition);
         self.scopes.push(ScopeKind::Loop);
         self.check_block(&statement.body);
         self.scopes.pop();
@@ -785,6 +893,7 @@ impl SemanticChecker {
             Expression::BoolLiteral(..) => Some("Bool"),
             Expression::Unary { operand, op, .. } => match op {
                 platipus_language::ast::UnaryOp::Not => Some("Bool"),
+                platipus_language::ast::UnaryOp::BitNot => Some("Int"),
                 platipus_language::ast::UnaryOp::Negate => self.infer_expr_type(operand),
             },
             Expression::Logical { .. } => Some("Bool"),
@@ -885,8 +994,19 @@ impl SemanticChecker {
                     self.report_undefined(identifier);
                 }
             }
-            Expression::Lambda { .. } => {
-                // Lambda parameters and body are checked in a dedicated pass later.
+            Expression::Lambda {
+                parameters, body, ..
+            } => {
+                self.scopes.push(ScopeKind::Function);
+                for parameter in parameters {
+                    self.report_shadow(parameter);
+                    self.declare(parameter, SymbolKind::Parameter);
+                }
+                match body {
+                    LambdaBody::Expression(expression) => self.check_expression(expression),
+                    LambdaBody::Block(block) => self.check_body(block),
+                }
+                self.scopes.pop();
             }
             Expression::ArrayLiteral(items, _) => {
                 for item in items {
@@ -921,6 +1041,33 @@ impl SemanticChecker {
                 for argument in arguments {
                     self.check_expression(argument);
                 }
+                self.check_call(callee, arguments);
+                if self.in_pure_fn {
+                    if let Some(identifier) = callee.as_identifier() {
+                        let is_declared_local = self
+                            .scopes
+                            .lookup(&identifier.name)
+                            .is_some_and(|symbol| {
+                                matches!(symbol.kind, SymbolKind::Variable | SymbolKind::Parameter)
+                            });
+                        if !is_declared_local
+                            && !platipus_standard::is_pure_call(&identifier.name, arguments.len())
+                        {
+                            self.diagnostics.error(
+                                Error::new(
+                                    ErrorKind::Semantic,
+                                    "impure-call-in-pure-fn",
+                                    format!(
+                                        "`{}` is not a pure function and cannot be called from a top-level `fn`",
+                                        identifier.name
+                                    ),
+                                )
+                                .with_span(identifier.span)
+                                .with_help("top-level `fn` bodies must be pure; move side effects into a component handler"),
+                            );
+                        }
+                    }
+                }
             }
             Expression::Member { object, .. } => self.check_expression(object),
             Expression::Index { object, index, .. } => {
@@ -945,12 +1092,29 @@ impl SemanticChecker {
         span: Span,
     ) {
         use platipus_language::ast::BinaryOp;
-        if !op.is_arithmetic() {
-            return;
-        }
         let (Some(l), Some(r)) = (self.infer_expr_type(left), self.infer_expr_type(right)) else {
             return;
         };
+        if matches!(op, BinaryOp::And | BinaryOp::Or | BinaryOp::Xor | BinaryOp::Shl | BinaryOp::Shr) {
+            // Bitwise operators act on the 32-bit integer view, so both
+            // operands must be provably integers; a Float would be silently
+            // truncated by JavaScript's ToInt32.
+            if l != "Int" || r != "Int" {
+                self.diagnostics.error(
+                    Error::new(
+                        ErrorKind::Semantic,
+                        "type-mismatch",
+                        format!("`{}` requires integer operands, got `{l}` and `{r}`", op.symbol()),
+                    )
+                    .with_span(span)
+                    .with_help("round with `trunc`, `floor`, or `round` before applying the operator"),
+                );
+            }
+            return;
+        }
+        if !op.is_arithmetic() {
+            return;
+        }
         let numeric = |t: &str| t == "Int" || t == "Float";
         let valid = match op {
             BinaryOp::Add => {
@@ -968,6 +1132,148 @@ impl SemanticChecker {
                 .with_span(span),
             );
         }
+    }
+
+    /// The signature to check a call against: prefer the symbol visible in
+    /// the *current* scope (a component `fn` in its own component, a
+    /// top-level `fn` globally), identified by its declaration span; fall
+    /// back to any registered signature with the same name.
+    fn resolve_fn_signature(&self, identifier: &Identifier) -> Option<FnSignature> {
+        let signatures = self.fn_signatures.get(&identifier.name)?;
+        if let Some(symbol) = self.scopes.lookup(&identifier.name) {
+            if symbol.kind == SymbolKind::Function {
+                if let Some(signature) = signatures.iter().find(|sig| sig.span == symbol.span) {
+                    return Some(signature.clone());
+                }
+            }
+        }
+        signatures.first().cloned()
+    }
+
+    fn register_fn_signature(&mut self, decl: &platipus_language::ast::FunctionDecl) {
+        let min = decl
+            .parameters
+            .iter()
+            .filter(|parameter| parameter.default.is_none())
+            .count();
+        let max = decl.parameters.len();
+        self.fn_signatures
+            .entry(decl.name.name.clone())
+            .or_default()
+            .push(FnSignature {
+                min,
+                max,
+                params: decl
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.type_annotation.clone())
+                    .collect(),
+                span: decl.span,
+            });
+    }
+
+    /// Arity and annotation checks at a call site. A call through an
+    /// identifier is checked against the matching `fn` signature, a standard
+    /// builtin, or an impure builtin; a builtin shared by both registries
+    /// (`drop`: list vs storage) accepts the union of arities.
+    fn check_call(&mut self, callee: &Expression, arguments: &[Expression]) {
+        let Some(identifier) = callee.as_identifier() else {
+            return;
+        };
+        if let Some(signature) = self.resolve_fn_signature(identifier) {
+            if arguments.len() < signature.min || arguments.len() > signature.max {
+                self.diagnostics.error(
+                    Error::new(
+                        ErrorKind::Semantic,
+                        "wrong-argument-count",
+                        format!(
+                            "`{}` expects {}, got {}",
+                            identifier.name,
+                            describe_arity(signature.min, signature.max),
+                            arguments.len()
+                        ),
+                    )
+                    .with_span(identifier.span),
+                );
+            } else {
+                self.check_call_types(identifier, &signature, arguments);
+            }
+            return;
+        }
+        let standard = platipus_standard::lookup(&identifier.name);
+        let impure = platipus_standard::IMPURE_BUILTINS
+            .iter()
+            .find(|builtin| builtin.name == identifier.name);
+        match (standard, impure) {
+            (Some(builtin), Some(impure_builtin)) => {
+                // `drop`: accept either arity
+                if !builtin.accepts(arguments.len()) && !impure_builtin.accepts(arguments.len()) {
+                    self.wrong_arity(identifier, &builtin, arguments.len());
+                }
+            }
+            (Some(builtin), None) => {
+                if !builtin.accepts(arguments.len()) {
+                    self.wrong_arity(identifier, &builtin, arguments.len());
+                }
+            }
+            (None, Some(builtin)) => {
+                if !builtin.accepts(arguments.len()) {
+                    self.wrong_arity(identifier, builtin, arguments.len());
+                }
+            }
+            (None, None) => {}
+        }
+    }
+
+    fn check_call_types(
+        &mut self,
+        identifier: &Identifier,
+        signature: &FnSignature,
+        arguments: &[Expression],
+    ) {
+        for (annotation, argument) in signature.params.iter().zip(arguments) {
+            let Some(annotation) = annotation else {
+                continue;
+            };
+            let expected = match annotation.base_name() {
+                "Text" => "String",
+                other => other,
+            };
+            if !matches!(expected, "Bool" | "Int" | "Float" | "String") {
+                continue;
+            }
+            if let Some(actual) = self.infer_expr_type(argument) {
+                if actual != expected {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "type-mismatch",
+                            format!(
+                                "argument of `{}` should be `{expected}`, got `{actual}`",
+                                identifier.name
+                            ),
+                        )
+                        .with_span(argument.span()),
+                    );
+                }
+            }
+        }
+    }
+
+    fn wrong_arity(&mut self, identifier: &Identifier, builtin: &platipus_standard::Builtin, got: usize) {
+        self.diagnostics.error(
+            Error::new(
+                ErrorKind::Semantic,
+                "wrong-argument-count",
+                format!(
+                    "`{}` expects {}, got {}",
+                    identifier.name,
+                    describe_arity(builtin.min_args, builtin.max_args),
+                    got
+                ),
+            )
+            .with_span(identifier.span),
+        );
     }
 
     fn report_undefined(&mut self, identifier: &Identifier) {
@@ -1037,6 +1343,14 @@ impl SemanticChecker {
     }
 }
 
+fn describe_arity(min: usize, max: usize) -> String {
+    if min == max {
+        format!("{} argument{}", min, if min == 1 { "" } else { "s" })
+    } else {
+        format!("between {} and {} arguments", min, max)
+    }
+}
+
 fn declared_names<'a>(
     inputs: &'a [platipus_language::ast::InputDecl],
     items: &'a [ComponentItem],
@@ -1059,31 +1373,6 @@ fn declared_names<'a>(
     names
 }
 
-/// The names the generated runtime provides as functions, callable without a
-/// declaration. They lower to `plt.*` calls (see `codegen::state::bind_builtins`).
-const BUILTIN_FUNCTIONS: &[&str] = &[
-    "fetch",
-    "writeClipboard",
-    "readClipboard",
-    "openFile",
-    "webSocket",
-    "receive",
-    "store",
-    "load",
-    "drop",
-    "canvas",
-    "fill",
-    "clear",
-    "drawText",
-    "nextFrame",
-    "wait",
-    "exec",
-    "selection",
-    "indent",
-    "sortBy",
-    "page",
-];
-
 fn is_builtin_function(name: &str) -> bool {
-    BUILTIN_FUNCTIONS.contains(&name) || platipus_standard::lookup(name).is_some()
+    platipus_standard::is_builtin_name(name)
 }

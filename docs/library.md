@@ -202,8 +202,9 @@ Yang sudah bisa dipakai hari ini:
 2. Upload source + `.libplt` ke GitHub Release
 3. Pemakai mengunduh `.libplt`, lalu `p2lt install ./nama-versi.libplt`
 
-Registry HTTP dan `p2lt add github.com/user/repo` belum ada; masih lokal /
-manual.
+Untuk registry HTTP dan paket GitHub, lihat
+[protokol registry](package-registry.md). `p2lt add github.com/user/repo`
+mengkloning repository dan mencatat sumber serta revision di lockfile.
 
 ## Checklist sebelum publish
 

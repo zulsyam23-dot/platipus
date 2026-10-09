@@ -373,6 +373,32 @@ fn the_test_command_runs_the_programs_tests() {
 }
 
 #[test]
+fn the_computation_fixture_holds_its_arithmetic() {
+    if !node_available() {
+        eprintln!("skipped: node is not on the PATH");
+        return;
+    }
+    // The fixture pins the grouping the compiler promises -- precedence, bitwise,
+    // ranges, the standard library -- so a change in how an expression is grouped
+    // has to be made deliberately in the fixture too.
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("fixtures")
+        .join("valid")
+        .join("compute.plt");
+    let out = scratch("test-compute").join("dist");
+    let (ok, stdout, stderr) = run(&[
+        "test",
+        fixture.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert!(ok, "stdout: {stdout} stderr: {stderr}");
+    assert!(!stdout.contains("FAIL"), "{stdout}");
+    assert!(stdout.contains("8 passed, 0 failed"), "{stdout}");
+}
+
+#[test]
 fn a_failing_expectation_fails_the_command() {
     if !node_available() {
         eprintln!("skipped: node is not on the PATH");
@@ -783,5 +809,7 @@ fn dev_rebuilds_when_an_imported_file_changes() {
     let script = fs::read_to_string(out.join("app.js")).expect("rebuilt app.js");
     assert!(script.contains("leaf-two"), "the leaf edit did not reach the rebuild");
 }
+
+
 
 

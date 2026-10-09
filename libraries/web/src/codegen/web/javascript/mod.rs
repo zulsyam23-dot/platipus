@@ -22,10 +22,32 @@ pub fn render(module: &IrModule, rust: Option<&platipus_ir::RustBridge>) -> Stri
     }
     out.push_str("const $components = {};\n\n");
     for component in &module.components {
-        out.push_str(&render_component(component, rust));
+        out.push_str(&render_component(component, module, rust));
         out.push('\n');
     }
     out.push_str(&render_api(module));
+    if !module.functions.is_empty() {
+        let mut module_scope = crate::codegen::expression::Scope::new();
+        crate::codegen::state::bind_builtins(&mut module_scope);
+        for function in &module.functions {
+            module_scope.bind(&function.name, crate::codegen::state::function_access(&function.name));
+        }
+        for function in &module.functions {
+            out.push_str(&crate::codegen::statement::render_function(function, &module_scope));
+            out.push('\n');
+        }
+        out.push_str("\nexport { ");
+        out.push_str(
+            &module
+                .functions
+                .iter()
+                .map(|function| format!("{} as {}", crate::codegen::state::function_access(&function.name), function.name))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        out.push_str(" };\n");
+        out.push_str("export const __plt = plt;\n");
+    }
     out.push_str(&render_bootstrap(module));
     out
 }
@@ -1491,14 +1513,39 @@ function padEnd(value, width) {
 function abs(value) {
   return typeof value === "number" ? Math.abs(value) : null;
 }
-function min(a, b) { return typeof a === "number" && typeof b === "number" ? Math.min(a, b) : null; }
-function max(a, b) { return typeof a === "number" && typeof b === "number" ? Math.max(a, b) : null; }
+function variadicMinMax(args, fold) {
+  if (!args.length || args.some((arg) => typeof arg !== "number")) return null;
+  return args.reduce(fold);
+}
+function min(...args) { return variadicMinMax(args, (a, b) => a < b ? a : b); }
+function max(...args) { return variadicMinMax(args, (a, b) => a > b ? a : b); }
 function clamp(value, lo, hi) {
   if (typeof value !== "number" || typeof lo !== "number" || typeof hi !== "number") return null;
   if (lo > hi) return null;
   return Math.min(Math.max(value, lo), hi);
 }
 function floor(value) { return typeof value === "number" ? Math.floor(value) : null; }
+function trunc(value) { return typeof value === "number" ? Math.trunc(value) : null; }
+function sign(value) {
+  if (typeof value !== "number") return null;
+  if (value > 0) return 1;
+  if (value < 0) return -1;
+  return value; // preserves -0 and NaN per Math.sign
+}
+function log(value) { return typeof value === "number" ? (value > 0 ? Math.log(value) : null) : null; }
+function log2(value) { return typeof value === "number" ? (value > 0 ? Math.log2(value) : null) : null; }
+function log10(value) { return typeof value === "number" ? (value > 0 ? Math.log10(value) : null) : null; }
+function exp(value) { return typeof value === "number" ? Math.exp(value) : null; }
+function sin(value) { return typeof value === "number" ? Math.sin(value) : null; }
+function cos(value) { return typeof value === "number" ? Math.cos(value) : null; }
+function tan(value) { return typeof value === "number" ? Math.tan(value) : null; }
+function atan2(y, x) { return typeof y === "number" && typeof x === "number" ? Math.atan2(y, x) : null; }
+function hypot(a, b) { return typeof a === "number" && typeof b === "number" ? Math.hypot(a, b) : null; }
+function cbrt(value) { return typeof value === "number" ? Math.cbrt(value) : null; }
+function imul(a, b) { return typeof a === "number" && typeof b === "number" ? Math.imul(a, b) : null; }
+function u32(value) { return typeof value === "number" ? (value >>> 0) : null; }
+function pi() { return Math.PI; }
+function e() { return Math.E; }
 function ceil(value) { return typeof value === "number" ? Math.ceil(value) : null; }
 function round(value) { return typeof value === "number" ? Math.round(value) : null; }
 function sqrt(value) {
@@ -1611,6 +1658,22 @@ return {
     round,
     sqrt,
     pow,
+    trunc,
+    sign,
+    log,
+    log2,
+    log10,
+    exp,
+    sin,
+    cos,
+    tan,
+    atan2,
+    hypot,
+    cbrt,
+    imul,
+    u32,
+    pi,
+    e,
     first,
     last,
     take,

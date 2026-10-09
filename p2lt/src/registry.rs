@@ -1,9 +1,7 @@
-//! A registry is a directory of packages. Each package is a subdirectory
-//! containing a valid `p2lt.toml` and a `src/` tree. This keeps the first
-//! implementation fully local and testable; a network registry server can
-//! later back the same interface.
+//! Local and HTTP package registry access.
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 pub struct Registry {
     pub root: PathBuf,
@@ -54,6 +52,155 @@ impl Registry {
             .filter(|name| name.contains(query))
             .collect()
     }
+
+    pub fn http_url() -> Option<String> {
+        std::env::var("P2LT_REGISTRY_URL")
+            .ok()
+            .map(|url| url.trim_end_matches('/').to_string())
+            .filter(|url| !url.is_empty())
+    }
+
+    /// Lists package names from the configured HTTP registry's `index.txt`.
+    pub fn http_list() -> Result<Option<Vec<String>>, String> {
+        let Some(base) = Self::http_url() else {
+            return Ok(None);
+        };
+        validate_http_url(&base)?;
+        let output = curl_output(&format!("{base}/index.txt"))?;
+        let mut names = Vec::new();
+        for line in String::from_utf8(output)
+            .map_err(|_| "registry index is not UTF-8".to_string())?
+            .lines()
+        {
+            let name = line.trim();
+            if name.is_empty() || name.starts_with('#') {
+                continue;
+            }
+            validate_package_name(name)?;
+            names.push(name.to_string());
+        }
+        names.sort();
+        names.dedup();
+        Ok(Some(names))
+    }
+
+    /// Downloads the latest archive at `/packages/{name}.libplt`.
+    pub fn http_download(name: &str, dest: &Path) -> Result<(), String> {
+        let base = Self::http_url().ok_or("P2LT_REGISTRY_URL is not configured")?;
+        Self::http_download_from(&base, name, dest)
+    }
+
+    pub fn http_download_from(base: &str, name: &str, dest: &Path) -> Result<(), String> {
+        validate_package_name(name)?;
+        validate_http_url(base)?;
+        let base = base.trim_end_matches('/');
+        curl_to_file(&format!("{base}/packages/{name}.libplt"), dest)
+    }
+
+    /// Publishes a package archive using HTTP PUT.
+    pub fn http_publish(name: &str, archive: &Path) -> Result<(), String> {
+        let base = Self::http_url().ok_or("P2LT_REGISTRY_URL is not configured")?;
+        Self::http_publish_to(&base, name, archive)
+    }
+
+    pub fn http_publish_to(base: &str, name: &str, archive: &Path) -> Result<(), String> {
+        validate_package_name(name)?;
+        validate_http_url(base)?;
+        let base = base.trim_end_matches('/');
+        let url = format!("{base}/packages/{name}.libplt");
+        let output = Command::new("curl")
+            .args([
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--max-time",
+                "60",
+                "--request",
+                "PUT",
+                "--upload-file",
+            ])
+            .arg(archive)
+            .arg(url)
+            .output()
+            .map_err(|error| format!("could not start curl for HTTP registry: {error}"))?;
+        if !output.status.success() {
+            return Err(format!(
+                "registry publish failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn validate_http_url(url: &str) -> Result<(), String> {
+    if !(url.starts_with("http://") || url.starts_with("https://"))
+        || url.contains('@')
+        || url.chars().any(char::is_whitespace)
+    {
+        return Err("P2LT_REGISTRY_URL must be an http(s) URL without credentials".into());
+    }
+    Ok(())
+}
+
+pub fn validate_package_name(name: &str) -> Result<(), String> {
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        || name == "."
+        || name == ".."
+    {
+        return Err(format!("invalid package name `{name}`"));
+    }
+    Ok(())
+}
+
+fn curl_output(url: &str) -> Result<Vec<u8>, String> {
+    let output = Command::new("curl")
+        .args([
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--location",
+            "--max-time",
+            "30",
+            url,
+        ])
+        .output()
+        .map_err(|error| format!("could not start curl for HTTP registry: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "registry request failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(output.stdout)
+}
+
+fn curl_to_file(url: &str, dest: &Path) -> Result<(), String> {
+    let output = Command::new("curl")
+        .args([
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--location",
+            "--max-time",
+            "60",
+            "--output",
+        ])
+        .arg(dest)
+        .arg(url)
+        .output()
+        .map_err(|error| format!("could not start curl for HTTP registry: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "registry request failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
 }
 
 /// Copies a directory tree.

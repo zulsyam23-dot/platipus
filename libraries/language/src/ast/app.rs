@@ -120,6 +120,7 @@ pub struct Program {
     pub apis: Vec<ApiDecl>,
     pub imports: Vec<ImportDecl>,
     pub tests: Vec<TestDecl>,
+    pub functions: Vec<crate::ast::FunctionDecl>,
     pub rust_blocks: Vec<crate::ast::RustBlock>,
     pub span: Span,
 }
@@ -141,6 +142,7 @@ impl Program {
             apis: Vec::new(),
             imports: Vec::new(),
             tests: Vec::new(),
+            functions: Vec::new(),
             rust_blocks: Vec::new(),
             span: Span::empty(),
         }
@@ -168,6 +170,7 @@ impl Program {
             && self.apis.is_empty()
             && self.imports.is_empty()
             && self.tests.is_empty()
+            && self.functions.is_empty()
             && self.rust_blocks.is_empty()
     }
 }

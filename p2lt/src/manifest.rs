@@ -57,7 +57,7 @@ impl Manifest {
         if let Some(integrity) = &self.integrity {
             out.push_str(&format!("integrity = {integrity:?}\n"));
         }
-        out.push_str(&format!("\n[dependencies]\n"));
+        out.push_str("\n[dependencies]\n");
         for (name, version) in &self.dependencies {
             out.push_str(&format!("{name} = {version:?}\n"));
         }
@@ -140,10 +140,7 @@ fn parse_string_array(value: &str) -> Result<Vec<String>, String> {
     if inner.trim().is_empty() {
         return Ok(Vec::new());
     }
-    inner
-        .split(',')
-        .map(|item| unquote(item.trim()))
-        .collect()
+    inner.split(',').map(|item| unquote(item.trim())).collect()
 }
 
 fn unquote(value: &str) -> Result<String, String> {

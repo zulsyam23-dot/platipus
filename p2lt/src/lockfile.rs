@@ -8,6 +8,8 @@ pub struct LockPackage {
     pub name: String,
     pub version: String,
     pub checksum: String,
+    pub source: Option<String>,
+    pub revision: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -25,6 +27,12 @@ impl Lockfile {
             out.push_str(&format!("name = {:?}\n", package.name));
             out.push_str(&format!("version = {:?}\n", package.version));
             out.push_str(&format!("checksum = {:?}\n", package.checksum));
+            if let Some(source) = &package.source {
+                out.push_str(&format!("source = {source:?}\n"));
+            }
+            if let Some(revision) = &package.revision {
+                out.push_str(&format!("revision = {revision:?}\n"));
+            }
             out.push('\n');
         }
         out
@@ -48,7 +56,10 @@ impl Lockfile {
             let (key, value) = line
                 .split_once('=')
                 .ok_or_else(|| format!("invalid line: {line}"))?;
-            current.insert(key.trim().to_string(), value.trim().trim_matches('"').to_string());
+            current.insert(
+                key.trim().to_string(),
+                value.trim().trim_matches('"').to_string(),
+            );
         }
         if !current.is_empty() {
             packages.push(package_from(current)?);
@@ -72,11 +83,16 @@ impl Lockfile {
 fn package_from(map: BTreeMap<String, String>) -> Result<LockPackage, String> {
     Ok(LockPackage {
         name: map.get("name").cloned().ok_or("lock entry missing name")?,
-        version: map.get("version").cloned().ok_or("lock entry missing version")?,
+        version: map
+            .get("version")
+            .cloned()
+            .ok_or("lock entry missing version")?,
         checksum: map
             .get("checksum")
             .cloned()
             .ok_or("lock entry missing checksum")?,
+        source: map.get("source").cloned(),
+        revision: map.get("revision").cloned(),
     })
 }
 
@@ -92,11 +108,15 @@ mod tests {
                     name: "http".into(),
                     version: "0.1.2".into(),
                     checksum: "abc".into(),
+                    source: None,
+                    revision: None,
                 },
                 LockPackage {
                     name: "json".into(),
                     version: "0.1.5".into(),
                     checksum: "def".into(),
+                    source: Some("github.com/user/json".into()),
+                    revision: Some("deadbeef".into()),
                 },
             ],
         };

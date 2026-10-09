@@ -102,7 +102,9 @@ pub fn resolve_and_combine(
         if index > 0 {
             parts.push('\n');
         }
-        parts.push_str(source);
+        // A BOM mid-buffer would trip the lexer; each part is a fresh file
+        // decoded by its own reader, so the mark is per-file baggage.
+        parts.push_str(source.strip_prefix('\u{feff}').unwrap_or(source));
     }
     Ok(Combined {
         label: entry_path.to_string(),

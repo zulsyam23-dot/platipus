@@ -1,5 +1,5 @@
 use platipus_diagnostics::Span;
-use crate::component::IrComponent;
+use crate::component::{IrComponent, IrFunction};
 
 pub use platipus_testing::{Step as IrTestStep, Test as IrTest};
 
@@ -12,6 +12,7 @@ pub struct IrModule {
     pub apis: Vec<IrApi>,
     pub imports: Vec<IrImport>,
     pub tests: Vec<IrTest>,
+    pub functions: Vec<IrFunction>,
     pub span: Span,
 }
 

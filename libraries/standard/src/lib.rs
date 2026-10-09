@@ -76,8 +76,8 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin::new("padStart", 2),
     Builtin::new("padEnd", 2),
     Builtin::new("abs", 1),
-    Builtin::new("min", 2),
-    Builtin::new("max", 2),
+    Builtin::variadic("min", 2, 64, true),
+    Builtin::variadic("max", 2, 64, true),
     Builtin::new("clamp", 3),
     Builtin::new("floor", 1),
     Builtin::new("ceil", 1),
@@ -98,7 +98,71 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin::new("parseInt", 1),
     Builtin::new("parseFloat", 1),
     Builtin::new("toText", 1),
+    Builtin::new("trunc", 1),
+    Builtin::new("sign", 1),
+    Builtin::new("log", 1),
+    Builtin::new("log2", 1),
+    Builtin::new("log10", 1),
+    Builtin::new("exp", 1),
+    Builtin::new("sin", 1),
+    Builtin::new("cos", 1),
+    Builtin::new("tan", 1),
+    Builtin::new("atan2", 2),
+    Builtin::new("hypot", 2),
+    Builtin::new("cbrt", 1),
+    Builtin::new("imul", 2),
+    Builtin::new("u32", 1),
+    Builtin::new("pi", 0),
+    Builtin::new("e", 0),
 ];
+
+/// Built-ins that are *not* pure: they touch storage, the network, the DOM,
+/// or time. They live in the same registry so semantic purity checks and the
+/// web binder read a single source of truth.
+pub const IMPURE_BUILTINS: &[Builtin] = &[
+    Builtin::impure("fetch", 1),
+    Builtin::impure("writeClipboard", 1),
+    Builtin::impure("readClipboard", 0),
+    Builtin::impure("openFile", 0),
+    Builtin::impure("webSocket", 1),
+    Builtin::impure("receive", 1),
+    Builtin::impure("store", 3),
+    Builtin::impure("load", 2),
+    Builtin::impure("drop", 2),
+    Builtin::impure("canvas", 1),
+    Builtin::impure("fill", 6),
+    Builtin::variadic("clear", 1, 2, false),
+    Builtin::impure("drawText", 4),
+    Builtin::impure("nextFrame", 0),
+    Builtin::impure("wait", 1),
+    Builtin::impure("exec", 1),
+    Builtin::impure("selection", 0),
+    Builtin::impure("indent", 0),
+    Builtin::impure("sortBy", 3),
+    Builtin::impure("page", 3),
+];
+
+/// Every built-in name, including the impure ones, for name-resolution only.
+pub fn is_builtin_name(name: &str) -> bool {
+    lookup(name).is_some() || IMPURE_BUILTINS.iter().any(|builtin| builtin.name == name)
+}
+
+/// Marks whether a call to `name` with `arguments` arguments is pure.
+/// `drop` is the ambiguous case: the list builtin `drop(list, n)` is pure
+/// while the storage builtin `drop(key)` is impure, so the call arity
+/// decides (2 arguments → list, 1 argument → storage).
+pub fn is_pure_call(name: &str, arguments: usize) -> bool {
+    if name == "drop" {
+        return arguments != 1;
+    }
+    match lookup(name) {
+        Some(builtin) => builtin.pure,
+        None => IMPURE_BUILTINS
+            .iter()
+            .find(|builtin| builtin.name == name)
+            .is_none(),
+    }
+}
 
 /// Looks a built-in up by name.
 pub fn lookup(name: &str) -> Option<Builtin> {
@@ -143,8 +207,8 @@ pub fn call(name: &str, arguments: &[Value]) -> Option<Value> {
             arguments.get(1)?.as_int()?,
         ))),
         "abs" => math::abs(&value),
-        "min" => math::min(&value, arguments.get(1)?),
-        "max" => math::max(&value, arguments.get(1)?),
+        "min" => math::min_all(arguments),
+        "max" => math::max_all(arguments),
         "clamp" => math::clamp(&value, arguments.get(1)?, arguments.get(2)?),
         "floor" => math::floor(&value),
         "ceil" => math::ceil(&value),
@@ -165,6 +229,22 @@ pub fn call(name: &str, arguments: &[Value]) -> Option<Value> {
         "parseInt" => parse::parse_int(&value),
         "parseFloat" => parse::parse_float(&value),
         "toText" => Some(parse::to_text(&value)),
+        "trunc" => math::trunc(&value),
+        "sign" => math::sign(&value),
+        "log" => math::log(&value),
+        "log2" => math::log2(&value),
+        "log10" => math::log10(&value),
+        "exp" => math::exp(&value),
+        "sin" => math::sin(&value),
+        "cos" => math::cos(&value),
+        "tan" => math::tan(&value),
+        "atan2" => math::atan2(&value, arguments.get(1)?),
+        "hypot" => math::hypot(&value, arguments.get(1)?),
+        "cbrt" => math::cbrt(&value),
+        "imul" => math::imul(&value, arguments.get(1)?),
+        "u32" => math::u32(&value),
+        "pi" => math::pi(),
+        "e" => math::e(),
         _ => None,
     }
 }
@@ -196,6 +276,19 @@ mod tests {
         assert!(lookup("len").unwrap().accepts(1));
         assert!(!lookup("len").unwrap().accepts(0));
         assert!(lookup("replace").unwrap().accepts(3));
+    }
+
+    #[test]
+    fn clear_accepts_an_optional_color() {
+        let clear = IMPURE_BUILTINS
+            .iter()
+            .find(|builtin| builtin.name == "clear")
+            .expect("clear is registered");
+        assert!(!clear.pure);
+        assert!(clear.accepts(1));
+        assert!(clear.accepts(2));
+        assert!(!clear.accepts(0));
+        assert!(!clear.accepts(3));
     }
 
     #[test]

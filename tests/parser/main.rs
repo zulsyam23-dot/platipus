@@ -373,3 +373,58 @@ fn a_range_outside_a_for_header_is_rejected() {
         );
     }
 }
+
+fn lambda_expression(source: &str) -> platipus_compiler::ast::Expression {
+    let statements = function_statements(source);
+    match &statements[0] {
+        platipus_compiler::ast::Statement::Let(decl) => decl.initializer.clone(),
+        other => panic!("expected a `let`, got {other:?}"),
+    }
+}
+
+#[test]
+fn parses_a_lambda_with_one_parameter() {
+    match lambda_expression("app A { fn f() { let g = x => x * 2 } Column { } }") {
+        platipus_compiler::ast::Expression::Lambda { parameters, .. } => {
+            assert_eq!(parameters.len(), 1);
+            assert_eq!(parameters[0].name, "x");
+        }
+        other => panic!("expected a lambda, got {other:?}"),
+    }
+}
+
+#[test]
+fn parses_a_lambda_with_multiple_parameters() {
+    match lambda_expression("app A { fn f() { let g = (a, b) => a + b } Column { } }") {
+        platipus_compiler::ast::Expression::Lambda { parameters, .. } => {
+            assert_eq!(parameters.len(), 2);
+            assert_eq!(parameters[1].name, "b");
+        }
+        other => panic!("expected a lambda, got {other:?}"),
+    }
+}
+
+#[test]
+fn parses_a_lambda_with_no_parameters() {
+    match lambda_expression("app A { fn f() { let g = () => 42 } Column { } }") {
+        platipus_compiler::ast::Expression::Lambda { parameters, .. } => {
+            assert!(parameters.is_empty());
+        }
+        other => panic!("expected a lambda, got {other:?}"),
+    }
+}
+
+#[test]
+fn parses_a_lambda_with_a_block_body() {
+    match lambda_expression(
+        "app A { fn f() { let g = x => { return x } } Column { } }",
+    ) {
+        platipus_compiler::ast::Expression::Lambda { body, .. } => {
+            assert!(matches!(
+                body,
+                platipus_compiler::ast::LambdaBody::Block(_)
+            ));
+        }
+        other => panic!("expected a lambda, got {other:?}"),
+    }
+}

@@ -916,3 +916,52 @@ fn let_and_while_stay_out_of_template_positions() {
         "statement-outside-function",
     );
 }
+
+#[test]
+fn a_lambda_parameter_may_not_shadow_an_outer_binding() {
+    assert_reports(
+        r##"
+app Shadow {
+    fn f() {
+        let total = 1
+        let g = total => total
+    }
+    Column { Text "x" }
+}
+"##,
+        "shadow-local",
+    );
+}
+
+#[test]
+fn a_lambda_body_is_checked_for_undefined_identifiers() {
+    assert_reports(
+        r##"
+app LambdaScope {
+    fn f() {
+        let g = x => x + missing
+    }
+    Column { Text "x" }
+}
+"##,
+        "undefined-identifier",
+    );
+}
+
+#[test]
+fn a_lambda_body_may_use_let_and_while() {
+    assert_clean(
+        r##"
+app LambdaBody {
+    fn f() {
+        let g = x => {
+            let y = 0
+            while y < x { y = y + 1 }
+            return y
+        }
+    }
+    Column { Text "x" }
+}
+"##,
+    );
+}

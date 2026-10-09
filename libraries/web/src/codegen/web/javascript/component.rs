@@ -5,8 +5,8 @@ use crate::codegen::statement::{declare_inputs, render_function};
 use platipus_ir::{IrComponent, IrState};
 
 
-pub fn render_component(component: &IrComponent, rust: Option<&platipus_ir::RustBridge>) -> String {
-    let mut scope = scope_for(component);
+pub fn render_component(component: &IrComponent, module: &platipus_ir::IrModule, rust: Option<&platipus_ir::RustBridge>) -> String {
+    let mut scope = scope_for(component, module);
     let channels = event_channels(&component.emits);
     for event in &component.emits {
         let key = event.strip_prefix("plt:").unwrap_or(event.as_str());

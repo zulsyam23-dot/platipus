@@ -25,6 +25,7 @@ use crate::manifest::Manifest;
 use crate::registry::checksum;
 
 const MAGIC: &[u8; 4] = b"PLT1";
+type ArchiveContents = (Manifest, BTreeMap<String, Vec<u8>>, bool);
 
 /// Creates `<out_dir>/<name>-<version>.libplt` from a package directory.
 /// The directory must contain a `p2lt.toml`. The manifest's `integrity`
@@ -103,9 +104,7 @@ pub fn unpack(path: &Path, dest: &Path) -> Result<Manifest, String> {
     Ok(manifest)
 }
 
-fn read_archive(
-    path: &Path,
-) -> Result<(Manifest, BTreeMap<String, Vec<u8>>, bool), String> {
+fn read_archive(path: &Path) -> Result<ArchiveContents, String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     let mut cursor = 0usize;
     let take = |cursor: &mut usize, n: usize| -> Result<&[u8], String> {
@@ -152,11 +151,7 @@ fn read_archive(
     Ok((manifest, entries, stored == entry_checksum))
 }
 
-fn collect(
-    root: &Path,
-    dir: &Path,
-    out: &mut BTreeMap<String, Vec<u8>>,
-) -> Result<(), String> {
+fn collect(root: &Path, dir: &Path, out: &mut BTreeMap<String, Vec<u8>>) -> Result<(), String> {
     for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();

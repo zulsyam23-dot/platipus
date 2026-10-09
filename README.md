@@ -200,25 +200,30 @@ mod within this ecosystem.
 
 ```bash
 p2lt init                 # p2lt.toml, src/main.plt, .gitignore, tests/
-p2lt install math         # copy from the registry into .p2lt/packages,
-                          # update p2lt.toml and p2lt.lock (FNV-1a checksums)
+p2lt add math             # install from a registry and record it in the lockfile
+p2lt add github.com/user/repo
+p2lt add github.com/user/repo#main
+p2lt install ./math.libplt # install a local archive
 p2lt list                 # installed dependencies
 p2lt update               # refresh from the registry + rewrite p2lt.lock
 p2lt remove math          # delete package + manifest/lockfile entries
 p2lt search math          # search the registry
-p2lt publish              # copy this package into the local registry
+p2lt publish              # publish locally, or PUT to P2LT_REGISTRY_URL
 p2lt build                # resolve, compile Platipus, extract + build Rust,
                           # write dist/
 p2lt run                  # build, then serve hint
 p2lt clean                # remove target/ and dist/
 ```
 
-The registry is a plain directory (`$P2LT_REGISTRY`, or
-`<project>/.p2lt/registry`) of package folders, so the whole loop is local and
-deterministic. Cargo builds Rust crates; P2LT manages Platipus packages.
-Installing a package may execute native code, so packages are always compiled,
-never eval'd - build scripts inside dependencies are never executed.
+By default, the registry is a local directory (`$P2LT_REGISTRY`, otherwise the
+shared Platipus store). Set `P2LT_REGISTRY_URL` to use an HTTP(S) registry.
+Its minimal endpoint contract is documented in
+[`docs/package-registry.md`](docs/package-registry.md). GitHub sources are
+fetched with `git`; HTTP registries are accessed with `curl`. Cargo builds Rust
+crates; P2LT manages Platipus packages. Installing a package may execute native
+code, so packages are compiled, never eval'd; dependency build scripts are not
+executed by P2LT.
 
 | Crate                  | Responsibility                                              |
 | ---------------------- | ----------------------------------------------------------- |
-| `platipus-p2lt`        | Manifest parsing, lockfile, local registry, resolver + CLI  |
+| `platipus-p2lt`        | Manifest, lockfile, local/HTTP registry, GitHub resolver + CLI |

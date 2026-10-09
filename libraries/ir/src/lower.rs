@@ -14,20 +14,43 @@ use platipus_language::events;
 
 pub struct Lowering<'a> {
     components: Vec<&'a str>,
+    /// Every `fn` name in the module (component-level and top-level), so
+    /// a call to one is not mistaken for a reactive dependency.
+    fn_names: Vec<&'a str>,
 }
 
 impl<'a> Lowering<'a> {
-    pub fn new(components: Vec<&'a str>) -> Self {
-        Self { components }
+    pub fn new(components: Vec<&'a str>, fn_names: Vec<&'a str>) -> Self {
+        Self { components, fn_names }
     }
 
     pub fn from_program(program: &'a Program) -> Self {
+        let mut fn_names: Vec<&'a str> = program
+            .functions
+            .iter()
+            .map(|decl| decl.name.as_str())
+            .collect();
+        let mut bodies: Vec<&[ComponentItem]> = Vec::new();
+        if let Some(app) = &program.app {
+            bodies.push(&app.body);
+        }
+        for component in &program.components {
+            bodies.push(&component.body);
+        }
+        for body in bodies {
+            for item in body {
+                if let ComponentItem::Function(decl) = item {
+                    fn_names.push(decl.name.as_str());
+                }
+            }
+        }
         Self::new(
             program
                 .components
                 .iter()
                 .map(|component| component.name.as_str())
                 .collect(),
+            fn_names,
         )
     }
 
@@ -37,16 +60,40 @@ impl<'a> Lowering<'a> {
 }
 
 pub fn lower_program(program: &Program) -> Option<IrModule> {
-    let app = program.app.as_ref()?;
     let lowering = Lowering::from_program(program);
-    let component = lowering.lower_component_from_app(app);
-    let components = std::iter::once(component)
-        .chain(
-            program
-                .components
+    let component = program
+        .app
+        .as_ref()
+        .map(|app| lowering.lower_component_from_app(app));
+    let mut components: Vec<IrComponent> = Vec::new();
+    if let Some(component) = component {
+        components.push(component);
+    }
+    components.extend(
+        program
+            .components
+            .iter()
+            .map(|component| lowering.lower_component(component)),
+    );
+    let functions: Vec<IrFunction> = program
+        .functions
+        .iter()
+        .map(|decl| IrFunction {
+            name: decl.name.as_str().to_string(),
+            is_async: decl.is_async,
+            parameters: decl.parameters.iter().map(lower_parameter).collect(),
+            return_type: decl
+                .return_type
+                .as_ref()
+                .map(|annotation| annotation.base_name().to_string()),
+            body: decl
+                .body
+                .statements
                 .iter()
-                .map(|component| lowering.lower_component(component)),
-        )
+                .map(|nested| lowering.lower_statement(nested))
+                .collect(),
+            span: decl.span,
+        })
         .collect();
     let apis = program.apis.iter().map(lower_api).collect();
     let styles = program
@@ -112,14 +159,24 @@ pub fn lower_program(program: &Program) -> Option<IrModule> {
         })
         .collect();
     Some(IrModule {
-        name: app.name.as_str().to_string(),
+        name: program
+            .app
+            .as_ref()
+            .map(|app| app.name.as_str().to_string())
+            .unwrap_or_else(|| {
+                std::path::Path::new(&program.path)
+                    .file_stem()
+                    .map(|stem| stem.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "module".to_string())
+            }),
         components,
         styles,
         themes,
         apis,
         imports,
         tests,
-        span: app.span,
+        functions,
+        span: program.app.as_ref().map(|app| app.span).unwrap_or(program.span),
     })
 }
 
@@ -195,7 +252,7 @@ impl<'a> TapItems<'a> for IrComponent {
                         .type_annotation
                         .as_ref()
                         .map(|annotation| annotation.base_name().to_string()),
-                    initializer: decl.initializer.as_ref().map(lower_reactive),
+                    initializer: decl.initializer.as_ref().map(|e| lower_reactive(e, &lowering.fn_names)),
                     span: decl.span,
                 }),
                 ComponentItem::Derived(decl) => self.derived.push(IrDerived {
@@ -205,7 +262,7 @@ impl<'a> TapItems<'a> for IrComponent {
                         .as_ref()
                         .map(|annotation| annotation.base_name().to_string()),
                     value: lower_expression(&decl.value),
-                    dependencies: dependencies(&decl.value),
+                    dependencies: dependencies(&decl.value, &lowering.fn_names),
                     span: decl.span,
                 }),
                 ComponentItem::Function(decl) => self.functions.push(IrFunction {
@@ -277,20 +334,26 @@ fn lower_parameter(parameter: &platipus_language::ast::Parameter) -> IrInput {
     }
 }
 
-fn lower_reactive(expression: &Expression) -> IrExpression {
+fn lower_reactive(expression: &Expression, fn_names: &[&str]) -> IrExpression {
     IrExpression {
         value: lower_expression(expression),
-        dependencies: dependencies(expression),
+        dependencies: dependencies(expression, fn_names),
         span: expression.span(),
     }
 }
 
-fn dependencies(expression: &Expression) -> Vec<String> {
+/// Collects the reactive dependencies of an expression: identifiers that
+/// are *not* builtins and *not* declared functions (calls to those are
+/// constants unless their arguments subscribe), and *not* lambda-renamed
+/// parameter names already baked into IR text.
+fn dependencies(expression: &Expression, fn_names: &[&str]) -> Vec<String> {
     let mut found: Vec<Identifier> = Vec::new();
     platipus_language::ast::collect_identifiers(expression, &mut found);
     let mut names: Vec<String> = found
         .into_iter()
         .map(|identifier| identifier.name)
+        .filter(|name| !platipus_standard::is_builtin_name(name))
+        .filter(|name| !fn_names.contains(&name.as_str()))
         .collect();
     names.sort();
     names.dedup();
@@ -310,7 +373,7 @@ impl<'a> Lowering<'a> {
             .iter()
             .map(|property| IrProperty {
                 name: property.name.as_str().to_string(),
-                value: lower_reactive(&property.value),
+                value: lower_reactive(&property.value, &self.fn_names),
                 span: property.span,
             })
             .collect();
@@ -327,7 +390,7 @@ impl<'a> Lowering<'a> {
                     }
                     ast::ElementItem::Property(property) => properties.push(IrProperty {
                         name: property.name.as_str().to_string(),
-                        value: lower_reactive(&property.value),
+                        value: lower_reactive(&property.value, &self.fn_names),
                         span: property.span,
                     }),
                     ast::ElementItem::Handler(handler) => {
@@ -343,7 +406,7 @@ impl<'a> Lowering<'a> {
                     }
                     ast::ElementItem::Binding(binding) => bindings.push(IrBinding {
                         name: binding.property.as_str().to_string(),
-                        value: lower_reactive(&binding.target),
+                        value: lower_reactive(&binding.target, &self.fn_names),
                         span: binding.span,
                     }),
                     ast::ElementItem::Stmt(statement) => {
@@ -361,7 +424,7 @@ impl<'a> Lowering<'a> {
             kind,
             properties,
             bindings,
-            text: element.text.as_ref().map(lower_reactive),
+            text: element.text.as_ref().map(|e| lower_reactive(e, &self.fn_names)),
             handlers,
             body,
             span: element.span,
@@ -580,6 +643,15 @@ fn assign_op(op: AssignOp) -> &'static str {
     op.symbol()
 }
 
+thread_local! {
+    /// Maps a lambda parameter name to its generated name (`l<n>_<name>`)
+    /// while a lambda subtree is being lowered, so nested lambdas never
+    /// collide in the plain-text output.
+    static LAMBDA_SUBS: std::cell::RefCell<std::collections::HashMap<String, String>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+    static LAMBDA_COUNTER: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub fn lower_expression(expression: &Expression) -> String {
     match expression {
         Expression::IntLiteral(value, _) => value.to_string(),
@@ -587,7 +659,12 @@ pub fn lower_expression(expression: &Expression) -> String {
         Expression::StringLiteral(value, _) => js_string_literal(value),
         Expression::BoolLiteral(value, _) => value.to_string(),
         Expression::NullLiteral(_) => "null".into(),
-        Expression::Identifier(identifier) => identifier.name.clone(),
+        Expression::Identifier(identifier) => LAMBDA_SUBS.with(|subs| {
+            subs.borrow()
+                .get(&identifier.name)
+                .cloned()
+                .unwrap_or_else(|| identifier.name.clone())
+        }),
         Expression::Event(_) => "event".into(),
         Expression::ArrayLiteral(items, _) => format!(
             "[{}]",
@@ -668,7 +745,165 @@ pub fn lower_expression(expression: &Expression) -> String {
         Expression::Await { operand, .. } => {
             format!("await {}", operand_at_least(operand, Prec::Postfix))
         }
-        Expression::Lambda { .. } => unimplemented!("lambda lowering"),
+        Expression::Lambda {
+            parameters, body, ..
+        } => {
+            let n = LAMBDA_COUNTER.with(|c| {
+                let value = c.get();
+                c.set(value + 1);
+                value
+            });
+            let renames: Vec<(String, String)> = parameters
+                .iter()
+                .map(|parameter| (parameter.name.clone(), format!("l{}_{}", n, parameter.name)))
+                .collect();
+            let previous: Vec<(String, Option<String>)> = LAMBDA_SUBS.with(|subs| {
+                let mut map = subs.borrow_mut();
+                renames
+                    .iter()
+                    .map(|(name, renamed)| (name.clone(), map.insert(name.clone(), renamed.clone())))
+                    .collect()
+            });
+            let params = renames
+                .iter()
+                .map(|(_, renamed)| renamed.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let text = match body {
+                platipus_language::ast::LambdaBody::Expression(expression) => lower_expression(expression),
+                platipus_language::ast::LambdaBody::Block(block) => {
+                    let statements = block
+                        .statements
+                        .iter()
+                        .map(lambda_statement_text)
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    format!("{{ {statements} }}")
+                }
+            };
+            LAMBDA_SUBS.with(|subs| {
+                let mut map = subs.borrow_mut();
+                for (name, old) in previous {
+                    match old {
+                        Some(old) => {
+                            map.insert(name, old);
+                        }
+                        None => {
+                            map.remove(&name);
+                        }
+                    }
+                }
+            });
+            format!("({}) => {}", params, text)
+        }
+    }
+}
+
+/// Renders a statement that may live inside a lambda block body as plain
+/// JavaScript text. Local names stay raw here: the semantic checker bans
+/// shadowing, so a raw name inside lambda text can never be rewritten into a
+/// wrong access by the surrounding web-codegen scope pass.
+fn lambda_statement_text(statement: &Statement) -> String {
+    match statement {
+        Statement::Assignment(assignment) => format!(
+            "{} {} {}",
+            lower_expression(&assignment.target),
+            assign_op(assignment.op),
+            lower_expression(&assignment.value)
+        ),
+        Statement::Expression(expression) => lower_expression(expression),
+        Statement::If(if_statement) => lambda_if_text(if_statement),
+        Statement::For(for_statement) => match &for_statement.iterable {
+            ForIterable::Value(iterable) => format!(
+                "for (const {} of plt.iter({})) {{ {} }}",
+                for_statement.binding.name,
+                lower_expression(iterable),
+                lambda_block_text(&for_statement.body)
+            ),
+            ForIterable::Range {
+                start,
+                end,
+                inclusive,
+                ..
+            } => format!(
+                "for (let {} = {}; {} {} {}; {}++) {{ {} }}",
+                for_statement.binding.name,
+                lower_expression(start),
+                for_statement.binding.name,
+                if *inclusive { "<=" } else { "<" },
+                lower_expression(end),
+                for_statement.binding.name,
+                lambda_block_text(&for_statement.body)
+            ),
+        },
+        Statement::Let(let_statement) => format!(
+            "let {} = {}",
+            let_statement.name.name,
+            lower_expression(&let_statement.initializer)
+        ),
+        Statement::While(while_statement) => format!(
+            "while ({}) {{ {} }}",
+            lower_expression(&while_statement.condition),
+            lambda_block_text(&while_statement.body)
+        ),
+        Statement::Return(return_statement) => match &return_statement.value {
+            Some(value) => format!("return {}", lower_expression(value)),
+            None => "return".to_string(),
+        },
+        Statement::Break(_) => "break".to_string(),
+        Statement::Continue(_) => "continue".to_string(),
+        Statement::Try(try_statement) => format!(
+            "try {{ {} }} catch ({}) {{ {} }}",
+            lambda_block_text(&try_statement.body),
+            try_statement
+                .binding
+                .as_ref()
+                .map(|binding| binding.name.clone())
+                .unwrap_or_else(|| "e".to_string()),
+            lambda_block_text(&try_statement.handler)
+        ),
+        Statement::Block(block) => format!("{{ {} }}", lambda_block_text(block)),
+        Statement::Empty(_) => String::new(),
+        Statement::State(_) | Statement::Derived(_) | Statement::Function(_) | Statement::Handler(_) => {
+            "/* declaration not allowed inside a lambda body */".to_string()
+        }
+        Statement::Element(_) => "/* element not allowed inside a lambda body */".to_string(),
+        Statement::Emit(emit) => format!("/* emit {} */", emit.name.name),
+        Statement::Import(_) | Statement::Test(_) => "/* not allowed inside a lambda body */".to_string(),
+    }
+}
+
+fn lambda_block_text(block: &platipus_language::ast::Block) -> String {
+    block
+        .statements
+        .iter()
+        .map(lambda_statement_text)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+fn lambda_if_text(if_statement: &platipus_language::ast::IfStatement) -> String {
+    match &if_statement.else_branch {
+        None => format!(
+            "if ({}) {{ {} }}",
+            lower_expression(&if_statement.condition),
+            lambda_block_text(&if_statement.then_branch)
+        ),
+        Some(branch) => match branch.as_ref() {
+            platipus_language::ast::ElseBranch::Block(block) => format!(
+                "if ({}) {{ {} }} else {{ {} }}",
+                lower_expression(&if_statement.condition),
+                lambda_block_text(&if_statement.then_branch),
+                lambda_block_text(block)
+            ),
+            platipus_language::ast::ElseBranch::If(nested) => format!(
+                "if ({}) {{ {} }} else {}",
+                lower_expression(&if_statement.condition),
+                lambda_block_text(&if_statement.then_branch),
+                lambda_if_text(nested)
+            ),
+        },
     }
 }
 
@@ -824,6 +1059,7 @@ fn unary_op(op: UnaryOp) -> &'static str {
     match op {
         UnaryOp::Negate => "-",
         UnaryOp::Not => "!",
+        UnaryOp::BitNot => "~",
     }
 }
 

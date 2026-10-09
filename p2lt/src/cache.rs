@@ -54,10 +54,7 @@ impl Default for StoreLoader {
 }
 
 impl platipus_compiler::loader::Loader for StoreLoader {
-    fn read(
-        &self,
-        path: &str,
-    ) -> Result<String, platipus_compiler::loader::ReadError> {
+    fn read(&self, path: &str) -> Result<String, platipus_compiler::loader::ReadError> {
         if let Ok(text) = std::fs::read_to_string(path) {
             return Ok(text);
         }

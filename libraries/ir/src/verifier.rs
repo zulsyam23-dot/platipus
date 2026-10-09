@@ -34,15 +34,15 @@ impl IrError {
 
 pub fn verify(module: &IrModule) -> Result<(), Vec<IrError>> {
     let mut errors = Vec::new();
-    if module.components.is_empty() {
+    if module.components.is_empty() && module.functions.is_empty() {
         errors.push(IrError::new(
             "empty-module",
-            "module contains no components to build",
+            "module contains no components or functions to build",
             module.span,
         ));
         return Err(errors);
     }
-    if module.components[0].name != module.name {
+    if !module.components.is_empty() && module.components[0].name != module.name {
         errors.push(IrError::new(
             "app-name-mismatch",
             format!(
@@ -54,6 +54,23 @@ pub fn verify(module: &IrModule) -> Result<(), Vec<IrError>> {
     }
     for component in &module.components {
         verify_component(component, &mut errors);
+    }
+    let empty_component = IrComponent {
+        name: String::new(),
+        inputs: Vec::new(),
+        states: Vec::new(),
+        derived: Vec::new(),
+        functions: Vec::new(),
+        handlers: Vec::new(),
+        body: Vec::new(),
+        emits: Vec::new(),
+        span: module.span,
+    };
+    for function in &module.functions {
+        let mut locals: Vec<String> = Vec::new();
+        for statement in &function.body {
+            verify_statement(statement, &empty_component, &function.parameters, &mut locals, &mut errors);
+        }
     }
     for import in &module.imports {
         if import.path.trim().is_empty() {
