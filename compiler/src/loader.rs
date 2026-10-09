@@ -29,7 +29,26 @@ impl ReadError {
 
 /// The one place a compile meets the filesystem.
 pub trait Loader {
-    fn read(&self, path: &str) -> Result<String, ReadError>;
+    /// Reads the module at `path` and reports **which file it turned out to be**.
+    ///
+    /// The second half of the answer is not optional bookkeeping. A relative
+    /// import inside a module means "next to me", and once a loader is allowed
+    /// to answer a path with a different file -- the Library Store answering
+    /// `computasi` with `<store>/packages/computasi/src/lib.plt`, say -- the
+    /// path the caller asked for is no longer the file the module lives in.
+    /// Reporting the real path is what lets the loader resolve that module's own
+    /// sibling imports beside the module rather than beside whichever file
+    /// happened to import it.
+    fn read(&self, path: &str) -> Result<Read, ReadError>;
+}
+
+/// A module that was read, and where it actually came from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Read {
+    /// The file the source was read from, which is what later relative imports
+    /// inside that source are resolved against.
+    pub path: String,
+    pub source: String,
 }
 
 /// A loader that reads exactly the path it is given, relative-paths resolved
@@ -37,9 +56,12 @@ pub trait Loader {
 pub struct FsLoader;
 
 impl Loader for FsLoader {
-    fn read(&self, path: &str) -> Result<String, ReadError> {
+    fn read(&self, path: &str) -> Result<Read, ReadError> {
         match std::fs::read_to_string(path) {
-            Ok(text) => Ok(text),
+            Ok(source) => Ok(Read {
+                path: path.to_string(),
+                source,
+            }),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(ReadError::NotFound),
             Err(error) => Err(ReadError::Io(error.to_string())),
         }
@@ -174,11 +196,43 @@ impl<'l> Discovery<'l> {
 
         let importer_path = Path::new(&self.files[importer]);
         let base = importer_path.parent().unwrap_or_else(|| Path::new("."));
-        let resolved = base.join(&import.path);
-        let key = std::fs::canonicalize(&resolved)
-            .unwrap_or(resolved)
+        let requested = base.join(&import.path);
+        let read = match self.loader.read(&requested.to_string_lossy()) {
+            Ok(read) => read,
+            Err(ReadError::NotFound) => {
+                return Err(self.fail(
+                    importer,
+                    Error::new(
+                        ErrorKind::Semantic,
+                        "import-not-found",
+                        format!("cannot find `{}` imported as `{label}`", import.path),
+                    )
+                    .with_span(import.span),
+                ));
+            }
+            Err(ReadError::Io(message)) => {
+                return Err(self.fail(
+                    importer,
+                    Error::new(
+                        ErrorKind::Semantic,
+                        "import-read-error",
+                        format!(
+                            "cannot read `{}` imported as `{label}`: {message}",
+                            import.path
+                        ),
+                    )
+                    .with_span(import.span),
+                ));
+            }
+        };
+        // The loader may have answered a package name rather than a path, so
+        // everything below works from the file it says it read, not from the one
+        // that was asked for.
+        let key = std::fs::canonicalize(&read.path)
+            .unwrap_or_else(|_| PathBuf::from(&read.path))
             .to_string_lossy()
             .to_string();
+        let source = read.source;
 
         if self.active.contains(&key) {
             return Err(self.fail(
@@ -208,35 +262,6 @@ impl<'l> Discovery<'l> {
                 .with_span(import.span),
             ));
         }
-
-        let source = match self.loader.read(&key) {
-            Ok(source) => source,
-            Err(ReadError::NotFound) => {
-                return Err(self.fail(
-                    importer,
-                    Error::new(
-                        ErrorKind::Semantic,
-                        "import-not-found",
-                        format!("cannot find `{}` imported as `{label}`", import.path),
-                    )
-                    .with_span(import.span),
-                ));
-            }
-            Err(ReadError::Io(message)) => {
-                return Err(self.fail(
-                    importer,
-                    Error::new(
-                        ErrorKind::Semantic,
-                        "import-read-error",
-                        format!(
-                            "cannot read `{}` imported as `{label}`: {message}",
-                            import.path
-                        ),
-                    )
-                    .with_span(import.span),
-                ));
-            }
-        };
 
         // A module is a library: no `app`, and no declaration name that the
         // program already owns. Parse errors in the module are fatal: merging

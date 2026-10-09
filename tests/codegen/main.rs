@@ -1677,3 +1677,67 @@ app Main {
     // be conditional on the program happening to declare a function.
     assert!(script.contains("export const __plt = plt;"), "{script}");
 }
+
+#[test]
+fn a_layout_property_reaches_the_stylesheet_rather_than_an_attribute() {
+    // The registry spells these the way CSS does and the language spells them in
+    // camelCase, so the two have to be compared in one spelling. Emitting
+    // `max-width="960px"` as an HTML attribute styles nothing, which is exactly
+    // what a browser would do with it.
+    let script = javascript(
+        r#"
+app Main {
+    state n = 1
+    Column {
+        maxWidth: "960px"
+        minHeight: "100vh"
+        gap: 8
+        Text n
+    }
+}
+"#,
+    );
+    assert!(!script.contains("\"max-width\""), "{script}");
+    assert!(!script.contains("\"min-height\""), "{script}");
+    assert!(script.contains("plt-e"), "{script}");
+    let module = lower(
+        r#"
+app Main {
+    state n = 1
+    Column {
+        maxWidth: "960px"
+        Text n
+    }
+}
+"#,
+    );
+    let css = platipus_compiler::codegen::Web
+        .generate(&module, None)
+        .expect("codegen failed")
+        .into_iter()
+        .find(|artifact| artifact.name == "app.css")
+        .expect("app.css")
+        .contents;
+    assert!(css.contains("max-width: 960px"), "{css}");
+}
+
+#[test]
+fn an_attribute_that_is_not_a_layout_property_stays_an_attribute() {
+    // The other half of the rule: a `Slider`'s `value` is the DOM property that
+    // control expects, not a CSS declaration, even though the name looks like a
+    // measurement.
+    let script = javascript(
+        r#"
+app Main {
+    state n = 5
+    Slider {
+        min: 0.0
+        max: 10.0
+        value: n * 1.0
+    }
+}
+"#,
+    );
+    assert!(script.contains("dom: { \"value\""), "{script}");
+    assert!(!script.contains("\"min-width\""), "{script}");
+}

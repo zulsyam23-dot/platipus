@@ -139,7 +139,9 @@ imported module triggers a rebuild.
 See [`docs/`](docs/). [`docs/prd.md`](docs/prd.md) is what the language is meant
 to be, [`docs/guide.md`](docs/guide.md) is how to write Platipus code,
 [`docs/library.md`](docs/library.md) is how to create and consume libraries
-(including the `.libplt` / `p2lt` flow), [`docs/struktur.md`](docs/struktur.md)
+(including the `.libplt` / `p2lt` flow),
+[`docs/libplt-format.md`](docs/libplt-format.md) is the archive format itself,
+[`docs/struktur.md`](docs/struktur.md)
 is the structure the code is organised towards, and
 [`docs/roadmap.md`](docs/roadmap.md) is what is actually implemented today.
 Read the roadmap before trusting a feature: it states, per phase, what works
@@ -153,9 +155,11 @@ The browser APIs are real too: `fetch`, clipboard, files, `WebSocket`, and
 local/session/IndexedDB storage. `Canvas`, `Editor`, `CodeEditor`, `DataGrid`,
 and `Tree` all have working runtime support, each with a documented gap list.
 Pure Platipus computation is proved by a package you can read:
-[`examples/algoritma/`](examples/algoritma/) implements gcd, primality,
-Fibonacci, factorial, Collatz, a non-mutating sort, binary search, palindromes
-and FNV-1a, with a test block per algorithm stating the value it produced.
+[`examples/computasi/`](examples/computasi/) implements gcd, primality,
+Fibonacci, factorial, Collatz, statistics, a non-mutating sort, binary search,
+palindromes, edit distance and FNV-1a, and ships the widgets that present those
+figures; [`examples/computasi-demo/`](examples/computasi-demo/) installs it from
+a `.libplt` archive and computes nothing itself.
 
 Type checking is real but partial: operand types, annotations, and arity are
 enforced, while return types and anything inferred from a non-literal are not.

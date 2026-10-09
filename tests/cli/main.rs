@@ -399,6 +399,34 @@ fn the_computation_fixture_holds_its_arithmetic() {
 }
 
 #[test]
+fn the_computasi_package_passes_its_own_tests() {
+    if !node_available() {
+        eprintln!("skipped: node is not on the PATH");
+        return;
+    }
+    // The package a user actually installs: computation plus the widgets that
+    // present it, split across two files with the widgets importing their way
+    // back into the library. Running it here is what keeps a package laid out
+    // that way from silently losing its second file.
+    let entry = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("examples")
+        .join("computasi")
+        .join("src")
+        .join("lib.plt");
+    let out = scratch("test-computasi").join("dist");
+    let (ok, stdout, stderr) = run(&[
+        "test",
+        entry.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert!(ok, "stdout: {stdout} stderr: {stderr}");
+    assert!(!stdout.contains("FAIL"), "{stdout}");
+    assert!(stdout.contains("13 passed, 0 failed"), "{stdout}");
+}
+
+#[test]
 fn a_failing_expectation_fails_the_command() {
     if !node_available() {
         eprintln!("skipped: node is not on the PATH");

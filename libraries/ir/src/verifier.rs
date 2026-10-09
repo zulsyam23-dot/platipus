@@ -42,7 +42,13 @@ pub fn verify(module: &IrModule) -> Result<(), Vec<IrError>> {
         ));
         return Err(errors);
     }
-    if !module.components.is_empty() && module.components[0].name != module.name {
+    // The rule is that an `app` is the entry point and carries the module name.
+    // A library module declares no app at all, and its first declaration is
+    // whichever component its author wrote first, so the rule only applies when
+    // there is an app to apply it to.
+    if module.components.first().is_some_and(|component| component.is_app)
+        && module.components[0].name != module.name
+    {
         errors.push(IrError::new(
             "app-name-mismatch",
             format!(
@@ -57,6 +63,7 @@ pub fn verify(module: &IrModule) -> Result<(), Vec<IrError>> {
     }
     let empty_component = IrComponent {
         name: String::new(),
+        is_app: false,
         inputs: Vec::new(),
         states: Vec::new(),
         derived: Vec::new(),

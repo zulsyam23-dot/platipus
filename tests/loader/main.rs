@@ -295,38 +295,108 @@ app Main {
     assert_eq!(codes(&bag), ["wrong-argument-count"]);
 }
 
+
+// A loader is allowed to answer a path with a different file -- the Library
+// Store answers the name `computasi` with
+// `<store>/packages/computasi/src/lib.plt`. When it does, the file it read has
+// to be reported, because a relative import inside that module means "next to
+// me" and "me" has just moved. This is the shape a real package has.
+struct StoreLikeLoader {
+    store: PathBuf,
+}
+
+impl platipus_compiler::loader::Loader for StoreLikeLoader {
+    fn read(
+        &self,
+        path: &str,
+    ) -> Result<platipus_compiler::loader::Read, platipus_compiler::loader::ReadError> {
+        let direct = Path::new(path);
+        if direct.exists() {
+            let source = fs::read_to_string(direct).map_err(|error| {
+                platipus_compiler::loader::ReadError::Io(error.to_string())
+            })?;
+            return Ok(platipus_compiler::loader::Read {
+                path: path.to_string(),
+                source,
+            });
+        }
+        let name = direct
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(path);
+        let candidate = self.store.join(name).join("src").join("lib.plt");
+        let source = fs::read_to_string(&candidate)
+            .map_err(|_| platipus_compiler::loader::ReadError::NotFound)?;
+        Ok(platipus_compiler::loader::Read {
+            path: candidate.to_string_lossy().to_string(),
+            source,
+        })
+    }
+}
+
 #[test]
-fn a_library_module_may_declare_test_blocks_that_the_entry_inherits() {
-    // A package ships its tests with it. They are not dropped on import, because
-    // the runner rewrites them against the module's own functions.
-    let dir = scratch("function-import-tests");
-    write(
-        &dir,
-        "math.plt",
-        "fn triple(n: Int) -> Int {\n    return n * 3\n}\n\ntest triplesThree {\n    expect triple(3) == 9\n}\n",
-    );
+fn a_modules_own_relative_import_is_resolved_beside_the_module() {
+    let dir = scratch("package-sibling");
+    let store = dir.join("store");
+    fs::create_dir_all(store.join("pkg").join("src")).expect("package directory");
+    fs::write(
+        store.join("pkg").join("src").join("lib.plt"),
+        "import Parts from \"./parts.plt\"\n\nfn total() -> Int {\n    return piece() + 1\n}\n",
+    )
+    .expect("write package entry");
+    fs::write(
+        store.join("pkg").join("src").join("parts.plt"),
+        "fn piece() -> Int {\n    return 2\n}\n",
+    )
+    .expect("write package module");
+
     let entry = write(
         &dir,
         "app.plt",
-        r#"import Math from "./math.plt"
-
-app Main {
-    state n = triple(7)
-    Column { Text n }
-}
-"#,
+        "import Pkg from \"pkg\"\n\napp Main {\n    state n = total()\n    Column { Text n }\n}\n",
     );
     let source = fs::read_to_string(&entry).expect("read entry");
-    let artifacts = pipeline::build_entry(&entry.display().to_string(), &source, &FsLoader, &Web)
-        .expect("the entry has to build")
-        .compilation
-        .artifacts;
-    let runner = artifacts
+    let artifacts =
+        pipeline::build_entry(&entry.display().to_string(), &source, &StoreLikeLoader { store }, &Web)
+            .expect("the package's own import has to resolve")
+            .compilation
+            .artifacts;
+    let script = artifacts
         .iter()
-        .find(|artifact| artifact.name == "tests.mjs")
-        .expect("tests.mjs")
+        .find(|artifact| artifact.name == "app.js")
+        .expect("app.js")
         .contents
         .clone();
-    assert!(runner.contains("triplesThree"), "{runner}");
-    assert!(runner.contains("const triple = program.triple;"), "{runner}");
+    assert!(script.contains("return 2"), "{script}");
+    assert!(script.contains("f_piece() + 1"), "{script}");
+}
+
+#[test]
+fn a_missing_sibling_inside_a_package_is_reported_against_that_package() {
+    let dir = scratch("package-missing-sibling");
+    let store = dir.join("store");
+    fs::create_dir_all(store.join("pkg").join("src")).expect("package directory");
+    fs::write(
+        store.join("pkg").join("src").join("lib.plt"),
+        "import Gone from \"./gone.plt\"\n\nfn total() -> Int {\n    return 1\n}\n",
+    )
+    .expect("write package entry");
+
+    let entry = write(
+        &dir,
+        "app.plt",
+        "import Pkg from \"pkg\"\n\napp Main {\n    state n = total()\n    Column { Text n }\n}\n",
+    );
+    let source = fs::read_to_string(&entry).expect("read entry");
+    let failure = pipeline::build_entry(
+        &entry.display().to_string(),
+        &source,
+        &StoreLikeLoader { store },
+        &Web,
+    )
+    .expect_err("the missing module has to fail");
+    let pipeline::EntryFailure::Module { bag, .. } = failure else {
+        panic!("a module that cannot be read is a module failure");
+    };
+    assert_eq!(codes(&bag), ["import-not-found"]);
 }

@@ -54,17 +54,29 @@ impl Default for StoreLoader {
 }
 
 impl platipus_compiler::loader::Loader for StoreLoader {
-    fn read(&self, path: &str) -> Result<String, platipus_compiler::loader::ReadError> {
-        if let Ok(text) = std::fs::read_to_string(path) {
-            return Ok(text);
+    fn read(
+        &self,
+        path: &str,
+    ) -> Result<platipus_compiler::loader::Read, platipus_compiler::loader::ReadError> {
+        if let Ok(source) = std::fs::read_to_string(path) {
+            return Ok(platipus_compiler::loader::Read {
+                path: path.to_string(),
+                source,
+            });
         }
         let name = std::path::Path::new(path)
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or(path);
         let candidate = package_dir(name).join("src").join("lib.plt");
-        match std::fs::read_to_string(candidate) {
-            Ok(text) => Ok(text),
+        match std::fs::read_to_string(&candidate) {
+            Ok(source) => Ok(platipus_compiler::loader::Read {
+                // The path the caller asked for was a package name, not a file.
+                // The store file is where this module actually lives, and it is
+                // what its own relative imports have to be resolved against.
+                path: candidate.to_string_lossy().to_string(),
+                source,
+            }),
             Err(_) => Err(platipus_compiler::loader::ReadError::NotFound),
         }
     }

@@ -115,18 +115,24 @@ const ELEMENT_STYLE_PROPERTIES: &[(&str, &str)] = &[
 /// HTML attribute, which is the spelling that element expects. The property
 /// list is the one the semantic checker uses, so a name that is not a property
 /// of the element is rejected before codegen ever sees it.
+///
+/// The list is in CSS spelling and the property arrives in source spelling, so
+/// both are compared in kebab-case. Without that, `maxWidth` would pass the
+/// checker's kebab lookup and then miss here, and be emitted as an HTML
+/// attribute that styles nothing.
 pub fn is_style_property(element: &str, property: &str) -> bool {
     let styled = crate::codegen::layout::is_layout(element)
         || platipus_semantic::element::builtins::BOX_ELEMENTS.contains(&element);
     if !styled {
         return false;
     }
+    let kebab = camel_to_kebab(property);
     let shared = platipus_semantic::element::builtins::LAYOUT_PROPERTIES
         .iter()
-        .any(|(candidate, _)| *candidate == property);
+        .any(|(candidate, _)| *candidate == property || *candidate == kebab);
     let own = ELEMENT_STYLE_PROPERTIES
         .iter()
-        .any(|(owner, candidate)| *owner == element && *candidate == property);
+        .any(|(owner, candidate)| *owner == element && (*candidate == property || *candidate == kebab));
     shared || own
 }
 
@@ -176,20 +182,9 @@ pub fn attribute_name(property: &str) -> String {
     kebab
 }
 
-pub fn camel_to_kebab(name: &str) -> String {
-    let mut out = String::with_capacity(name.len() + 4);
-    for ch in name.chars() {
-        if ch.is_ascii_uppercase() {
-            if !out.is_empty() {
-                out.push('-');
-            }
-            out.extend(ch.to_lowercase());
-        } else {
-            out.push(ch);
-        }
-    }
-    out
-}
+/// Re-exported from the language crate so there is one conversion between a
+/// Platipus property and its CSS spelling, not one per crate that needs it.
+pub use platipus_language::element::camel_to_kebab;
 
 pub fn accepts_text(element: &str) -> bool {
     tag_of(element) != "img"

@@ -93,6 +93,31 @@ Page {
 }
 ```
 
+Nama properti di dalam `style` ditulis camelCase dan menjadi kebab-case di CSS.
+Nilai **harus literal**: stylesheet tidak bisa membaca state, jadi compiler
+menolak nilai lain dengan `style-value-not-literal`. Yang nilainya berubah
+sesuai data — tinggi batang, lebar isi meter — ditulis sebagai **properti
+element**, yang compiler terbitkan sebagai deklarasi inline pada node itu:
+
+```plt
+component Bar {
+    input value = 0.0
+
+    Row {
+        width: "6px"
+        height: value          // dinamis: jadi properti element
+        style {
+            background: "var(--plt-accent)"   // statis: literal
+        }
+    }
+}
+```
+
+Properti element yang tata letak — `width`, `height`, `maxWidth`, `minHeight`,
+`padding`, `gap`, `margin` — menjadi CSS, bukan atribut HTML. Properti lain
+menjadi atribut atau properti DOM sesuai elemennya: `Slider { value: n }` mengisi
+nilai kontrol, bukan CSS.
+
 ## Blok Rust
 
 File `.plt` dapat menyematkan Rust tepercaya; compiler mengekstraknya,

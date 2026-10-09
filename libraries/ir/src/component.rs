@@ -4,6 +4,10 @@ use crate::element::IrElement;
 #[derive(Debug, Clone, PartialEq)]
 pub struct IrComponent {
     pub name: String,
+    /// Whether this came from an `app` declaration rather than a `component`.
+    /// The two lower identically, but only an app is bound by the rule that its
+    /// name has to match the module, so the verifier needs to tell them apart.
+    pub is_app: bool,
     pub inputs: Vec<IrInput>,
     pub states: Vec<crate::state::IrState>,
     pub derived: Vec<crate::state::IrDerived>,

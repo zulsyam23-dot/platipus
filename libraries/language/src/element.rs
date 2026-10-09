@@ -1,3 +1,23 @@
+/// `maxWidth` to `max-width`.
+///
+/// An element property is written as an identifier, so it cannot carry the
+/// hyphen its CSS spelling uses. This is the one conversion between the two, and
+/// both the property lookup and the style block go through it.
+pub fn camel_to_kebab(name: &str) -> String {
+    let mut out = String::with_capacity(name.len() + 4);
+    for ch in name.chars() {
+        if ch.is_ascii_uppercase() {
+            if !out.is_empty() {
+                out.push('-');
+            }
+            out.extend(ch.to_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
 #[derive(Debug, Clone)]
 pub struct ElementProperty {
     pub name: String,
@@ -97,10 +117,18 @@ impl ElementRegistry {
 
     pub fn unknown_property(&self, name: &str, property: &str) -> bool {
         match self.get(name) {
-            Some(definition) => !definition
-                .properties
-                .iter()
-                .any(|candidate| candidate.name == property),
+            Some(definition) => {
+                // Properties are registered in their CSS spelling, which may
+                // contain a hyphen, while the language has no way to write one:
+                // a property name is an identifier. `maxWidth` is therefore the
+                // only way to spell `max-width`, and the lookup has to make the
+                // same conversion the style block already makes.
+                let wanted = camel_to_kebab(property);
+                !definition
+                    .properties
+                    .iter()
+                    .any(|candidate| candidate.name == property || candidate.name == wanted)
+            }
             None => false,
         }
     }

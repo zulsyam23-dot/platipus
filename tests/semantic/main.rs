@@ -1185,3 +1185,78 @@ app BitwiseInt {
 "##,
     );
 }
+
+// -- regressions found while building a real package --------------------------
+//
+// Each of these was a bug that only a program using the feature could reach, so
+// each is now stated here rather than left to the next person to rediscover.
+
+#[test]
+fn a_style_value_that_is_not_a_literal_is_rejected() {
+    // A stylesheet cannot read state, so an expression written into one would be
+    // copied out as its own source text and dropped by the browser with nothing
+    // to say so. `computasi`'s widgets hit this while trying to colour a tile
+    // from an input.
+    assert_reports(
+        r##"
+app StaticStylesheet {
+    state rule = "var(--plt-accent)"
+    Card {
+        style {
+            "border-left": "3px solid " + rule
+        }
+    }
+}
+"##,
+        "style-value-not-literal",
+    );
+}
+
+#[test]
+fn a_literal_style_value_is_accepted() {
+    assert_clean(
+        r##"
+app StaticStylesheet {
+    Card {
+        style {
+            "border-left": "3px solid var(--plt-accent)"
+            gap: 6
+            fontSize: "12px"
+        }
+    }
+}
+"##,
+    );
+}
+
+#[test]
+fn a_layout_property_written_in_camel_case_resolves() {
+    // The registry spells layout properties the way CSS does, but a property
+    // name is an identifier and cannot carry a hyphen, so `maxWidth` is the only
+    // way to write `max-width`.
+    assert_clean(
+        r##"
+app CamelCaseLayout {
+    Card {
+        maxWidth: "960px"
+        minHeight: "100vh"
+        borderRadius: "12px"
+    }
+}
+"##,
+    );
+}
+
+#[test]
+fn a_layout_property_that_does_not_exist_is_still_rejected() {
+    assert_reports(
+        r##"
+app CamelCaseLayout {
+    Card {
+        maxWidht: "960px"
+    }
+}
+"##,
+        "unknown-property",
+    );
+}

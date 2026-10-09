@@ -201,6 +201,7 @@ impl<'a> Lowering<'a> {
     fn lower_component(&self, component: &ComponentDecl) -> IrComponent {
         IrComponent {
             name: component.name.as_str().to_string(),
+            is_app: false,
             inputs: component.inputs.iter().map(lower_input).collect(),
             states: Vec::new(),
             derived: Vec::new(),
@@ -220,6 +221,7 @@ impl<'a> Lowering<'a> {
     fn lower_component_from_app(&self, app: &AppDecl) -> IrComponent {
         IrComponent {
             name: app.name.as_str().to_string(),
+            is_app: true,
             inputs: app.inputs.iter().map(lower_input).collect(),
             states: Vec::new(),
             derived: Vec::new(),

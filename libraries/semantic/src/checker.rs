@@ -2,6 +2,7 @@ use platipus_language::element::ElementRegistry;
 use super::scope::{ScopeKind, ScopeStack, Symbol, SymbolKind};
 use super::types::TypeRegistry;
 use platipus_language::ast::{
+    style::{StyleBlock, StyleEntry},
     Block, ComponentDecl, ComponentItem, Element, ElementItem, EmitStatement, EventHandlerDecl,
     Expression, ForIterable, ForStatement, Identifier, IfStatement, LetStatement, Program,
     PropertyValue, Statement, TestStep, TypeExpr, WhileStatement,
@@ -377,8 +378,46 @@ impl SemanticChecker {
             }
             ComponentItem::Child(element) => self.check_element(element),
             ComponentItem::Stmt(statement) => self.check_statement(statement),
-            ComponentItem::Style(_) => {}
+            ComponentItem::Style(block) => self.check_style_block(block),
             ComponentItem::Import(_) | ComponentItem::Test(_) => {}
+        }
+    }
+
+    /// A stylesheet is static, so a style value has to be a literal.
+    ///
+    /// The parser accepts any expression here, and an expression used to be
+    /// written into the stylesheet as its own source text. `border-left: "3px
+    /// solid " + rule` therefore produced `border-left: "3px solid " + rule`,
+    /// which a browser silently drops, leaving the element unstyled with nothing
+    /// to say so. Rejecting the value is the only honest answer: CSS cannot
+    /// depend on state, so there is no value to emit.
+    fn check_style_block(&mut self, block: &StyleBlock) {
+        for entry in &block.entries {
+            if let StyleEntry::Property { name, value, span } = entry {
+                if !matches!(
+                    value,
+                    Expression::StringLiteral(..)
+                        | Expression::IntLiteral(..)
+                        | Expression::FloatLiteral(..)
+                        | Expression::BoolLiteral(..)
+                        | Expression::ArrayLiteral(..)
+                ) {
+                    self.diagnostics.error(
+                        Error::new(
+                            ErrorKind::Semantic,
+                            "style-value-not-literal",
+                            format!(
+                                "`{}` in a `style` block must be a literal, because a stylesheet is static",
+                                name.as_str()
+                            ),
+                        )
+                        .with_span(*span),
+                    );
+                }
+            }
+        }
+        for group in &block.groups {
+            self.check_style_block(&group.block);
         }
     }
 
@@ -876,7 +915,8 @@ impl SemanticChecker {
                 self.scopes.pop();
             }
             ElementItem::Binding(binding) => self.check_expression(&binding.target),
-            ElementItem::Style(_) | ElementItem::Responsive(_) => {}
+            ElementItem::Style(block) => self.check_style_block(block),
+        ElementItem::Responsive(_) => {}
             ElementItem::Stmt(statement) => self.check_statement(statement),
         }
     }
