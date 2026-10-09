@@ -9,3 +9,8 @@ Thumbs.db
 
 **/target/
 **/dist/
+
+# Hasil `iscc`. Installer dibangun ulang dari skrip dan binary di target/, jadi
+# meng-commit 2.5 MB executable setiap kali compiler berubah tidak memberi
+# apa pun; yang versioned adalah skripnya.
+installer/*-setup.exe

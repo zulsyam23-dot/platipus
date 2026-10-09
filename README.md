@@ -18,9 +18,31 @@ Element
     ├── State Binding
     └── Event
     ↓
-Reactive Runtime
+    Reactive Runtime
     ↓
 Web
+```
+
+## Install
+
+Windows, lewat Inno Setup:
+
+```text
+cargo build --release -p platipus-cli -p platipus-p2lt
+iscc installer\platipus.iss
+```
+
+Hasilnya `installer\Platipus-0.1.0-setup.exe`, sekitar 2.5 MB. Yang dipaketkan
+adalah tiga binary — `platipus`, `plt`, dan `p2lt` — dan tidak ada runtime yang
+perlu dipasang, karena program Platipus adalah HTML, CSS, dan JavaScript di
+satu direktori. Node dibutuhkan di mesin hanya untuk `platipus test` dan
+`platipus dev`. Detailnya di [`installer/README.md`](installer/README.md).
+
+Dari sumber, tanpa installer:
+
+```text
+cargo build --release -p platipus-cli -p platipus-p2lt
+target\release\platipus.exe --help
 ```
 
 ## Example
@@ -141,6 +163,8 @@ to be, [`docs/guide.md`](docs/guide.md) is how to write Platipus code,
 [`docs/library.md`](docs/library.md) is how to create and consume libraries
 (including the `.libplt` / `p2lt` flow),
 [`docs/libplt-format.md`](docs/libplt-format.md) is the archive format itself,
+[`examples/`](examples/) is the map of runnable examples,
+[`installer/`](installer/) is how the Windows installer is built,
 [`docs/struktur.md`](docs/struktur.md)
 is the structure the code is organised towards, and
 [`docs/roadmap.md`](docs/roadmap.md) is what is actually implemented today.
