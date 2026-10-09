@@ -128,6 +128,39 @@ test clickingAdds {
 
 Jalankan: `platipus test app.plt` atau dari project: `plt test`.
 
+Blok `test` hanya boleh berisi action (`click`) dan `expect` — tidak ada `let`.
+Test yang butuh nilai antara memanggil fungsi yang mengembalikannya, seperti yang
+`examples/algoritma/src/lib.plt` lakukan untuk `sortReport()`.
+
+## Fungsi dan pembagian
+
+`fn` selalu mengembalikan lewat `return`. Tidak ada nilai terakhir yang
+dipakai otomatis:
+
+```plt
+fn square(x: Int) -> Int {
+    return x * x
+}
+```
+
+Badan `x * x` tanpa `return` berakhir dengan `undefined`, dan pemanggilnya
+menerima `undefined` tanpa diagnostic apa pun.
+
+`/` adalah pembagian sejati, jadi `1 / 2` adalah `0.5`. Pembagian bulat
+memakai builtin `idiv`, yang memotong ke arah nol:
+
+```plt
+fn halving(n: Int) -> Int {
+    return idiv(n, 2)   // 7 -> 3, bukan 3.5
+}
+```
+
+Operasi teks yang sering dipakai: `codeAt(teks, i)` memberi kode karakter pada
+indeks ke-`i`, dihitung per karakter (bukan per byte) supaya konsisten dengan
+`len`, dan `isPalindrome` di
+[`examples/algoritma/src/lib.plt`](../examples/algoritma/src/lib.plt)
+dibangun di atasnya.
+
 ## Perintah CLI
 
 | Perintah | Fungsi |

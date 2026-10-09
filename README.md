@@ -152,9 +152,16 @@ v0.1 — the core language works end to end: it compiles to a browser program,
 The browser APIs are real too: `fetch`, clipboard, files, `WebSocket`, and
 local/session/IndexedDB storage. `Canvas`, `Editor`, `CodeEditor`, `DataGrid`,
 and `Tree` all have working runtime support, each with a documented gap list.
-Not yet real: type checking, an LSP or debugger, fine-grained rendering, and
-production output. See [`docs/roadmap.md`](docs/roadmap.md) for the itemised
-list.
+Pure Platipus computation is proved by a package you can read:
+[`examples/algoritma/`](examples/algoritma/) implements gcd, primality,
+Fibonacci, factorial, Collatz, a non-mutating sort, binary search, palindromes
+and FNV-1a, with a test block per algorithm stating the value it produced.
+
+Type checking is real but partial: operand types, annotations, and arity are
+enforced, while return types and anything inferred from a non-literal are not.
+Not yet real: an LSP or debugger, fine-grained rendering, list virtualisation,
+code splitting, tree shaking, and production output. See
+[`docs/roadmap.md`](docs/roadmap.md) for the itemised list.
 
 ## License
 

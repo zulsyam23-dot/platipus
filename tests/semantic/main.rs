@@ -965,3 +965,223 @@ app LambdaBody {
 "##,
     );
 }
+
+// -- arity, purity, and bitwise operands -------------------------------------
+//
+// The three rules below were all enforced by the checker but none of them had a
+// test here, so a change that stopped enforcing one would have been invisible.
+// Each test states the diagnostic the rule produces, because a diagnostic that
+// stops being reported is how the rule quietly stops existing.
+
+#[test]
+fn a_user_function_rejects_too_many_arguments() {
+    assert_reports(
+        r##"
+fn add(a: Int, b: Int) -> Int {
+    return a + b
+}
+
+app Arity {
+    state total = add(1, 2, 3)
+    Column { Text total }
+}
+"##,
+        "wrong-argument-count",
+    );
+}
+
+#[test]
+fn a_user_function_rejects_too_few_arguments() {
+    assert_reports(
+        r##"
+fn add(a: Int, b: Int) -> Int {
+    return a + b
+}
+
+app ArityFew {
+    state total = add(1)
+    Column { Text total }
+}
+"##,
+        "wrong-argument-count",
+    );
+}
+
+#[test]
+fn a_parameter_with_a_default_makes_the_arity_a_range() {
+    assert_clean(
+        r##"
+fn greet(name: String, punctuation: String = "!") -> String {
+    return name + punctuation
+}
+
+app ArityDefault {
+    state a = greet("hi")
+    state b = greet("hi", "?")
+    Column { Text a Text b }
+}
+"##,
+    );
+}
+
+#[test]
+fn a_builtin_rejects_the_wrong_number_of_arguments() {
+    assert_reports(
+        r##"
+app BuiltinArity {
+    state count = len()
+    Column { Text count }
+}
+"##,
+        "wrong-argument-count",
+    );
+}
+
+#[test]
+fn a_three_argument_builtin_rejects_two() {
+    assert_reports(
+        r##"
+app BuiltinArityThree {
+    state text = replace("a", "b")
+    Column { Text text }
+}
+"##,
+        "wrong-argument-count",
+    );
+}
+
+#[test]
+fn a_variadic_builtin_accepts_a_range() {
+    assert_clean(
+        r##"
+app Variadic {
+    state least = min(3, 1, 2)
+    state most = max(1, 2, 3, 4, 5, 6, 7)
+    Column { Text least Text most }
+}
+"##,
+    );
+}
+
+#[test]
+fn a_variadic_builtin_still_rejects_one_argument() {
+    assert_reports(
+        r##"
+app VariadicFew {
+    state least = min(3)
+    Column { Text least }
+}
+"##,
+        "wrong-argument-count",
+    );
+}
+
+#[test]
+fn an_impure_builtin_is_rejected_inside_a_top_level_function() {
+    assert_reports(
+        r##"
+fn readIt(key: String) -> String {
+    return load("local", key)
+}
+
+app Impure {
+    state value = readIt("k")
+    Column { Text value }
+}
+"##,
+        "impure-call-in-pure-fn",
+    );
+}
+
+#[test]
+fn a_top_level_function_may_not_declare_state() {
+    assert_reports(
+        r##"
+fn bad() {
+    state counter = 0
+}
+
+app PureFnState {
+    Column { Text "x" }
+}
+"##,
+        "pure-fn-uses-state",
+    );
+}
+
+#[test]
+fn a_top_level_function_may_not_declare_a_derived() {
+    assert_reports(
+        r##"
+fn bad() {
+    derived twice = 1 + 1
+}
+
+app PureFnDerived {
+    Column { Text "x" }
+}
+"##,
+        "pure-fn-uses-state",
+    );
+}
+
+#[test]
+fn a_top_level_function_may_not_emit() {
+    assert_reports(
+        r##"
+fn bad() {
+    emit done("done")
+}
+
+app PureFnEmit {
+    Column { Text "x" }
+}
+"##,
+        "impure-call-in-pure-fn",
+    );
+}
+
+#[test]
+fn a_top_level_function_may_use_pure_builtins() {
+    assert_clean(
+        r##"
+fn total(values: Any) -> Int {
+    return len(values) + abs(-1)
+}
+
+app PureFnOk {
+    state n = total([1, 2, 3])
+    Column { Text n }
+}
+"##,
+    );
+}
+
+#[test]
+fn bitwise_operators_require_integer_operands() {
+    assert_reports(
+        r##"
+app BitwiseFloat {
+    state masked = 5 & 3.5
+    Column { Text masked }
+}
+"##,
+        "type-mismatch",
+    );
+}
+
+#[test]
+fn bitwise_operators_accept_integer_operands() {
+    assert_clean(
+        r##"
+app BitwiseInt {
+    state masked = 5 & 3
+    state shifted = 1 << 4
+    state ored = 0xF0 | 0x0F
+    state xored = 5 ^ 3
+    state inverted = ~0
+    Column { Text masked Text shifted Text ored Text xored Text inverted }
+}
+"##,
+    );
+}

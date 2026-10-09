@@ -31,6 +31,14 @@ Aturan pemakaian dokumen ini:
 runtime sebelumnya dan menutup celah pada showcase agar klaim demo cocok dengan
 perilaku browser nyata:
 
+> **Baca dulu sebelum memakai angka di bawah.** Bagian 1 sampai bagian 9 adalah
+> catatan audit tertanggal 2026-09-29, dan angka-angkanya sudah tidak sesuai
+> dengan tree kerja sekarang: workspace punya 14 crate, bukan 4, dan
+> `cargo test --workspace` menjalankan 441 test, bukan 305. Klaim *status* pada
+> bagian 4 dan bagian 10 sudah diverifikasi ulang pada 2026-10-09 dan itu yang
+> berlaku; sisanya menggambarkan apa yang benar pada saat audit, bukan apa yang
+> benar sekarang.
+
 * `on input` + `bind` pada node yang sama rusak karena render di antara dua
   listener. Kedua jenis listener kini berbagi satu DOM listener per event, jadi
   satu dispatch adalah satu transaksi (bagian 4.3 dan 4.10);
@@ -1087,20 +1095,43 @@ yang dipakai:
 
 ## 10. Paket Kemampuan Komputasi (fase A)
 
-Status paket `fase.md` di root repository. Setiap baris hanya dinyatakan
-selesai bila `cargo test --workspace` hijau dan buktinya berupa `path:line`.
+Status di bawah diverifikasi ulang pada 2026-10-09 terhadap tree kerja saat ini,
+bukan disalin dari catatan fase sebelumnya. Setiap baris hanya dinyatakan selesai
+bila ada bukti berupa `path:line` **dan** ada test yang memegangnya.
 
 | Fase | Judul | Status | Ringkasan | Bukti |
 | --- | --- | --- | --- | --- |
-| 0 | Lexer & desain | **SELESAI** | Token `..` `..=` `=>` `&` `\|` `^` `~` `<<` `>>` `&=` `\|=` `^=` `<<=` `>>=`, literal `0x`/`0b`, `Precedence` diperluas, dan perbaikan bug presedensi `binary_info` (`1 + 2 * 3` sekarang benar). | `tests/lexer/main.rs:282`, `tests/parser/main.rs:208`, `libraries/language/src/parser/expression.rs:47`, `docs/logic-design.md` |
-| 1 | `let`, `while`, loop angka | **SELESAI** | `let` blok + scope, `while`, `for i in a..b`/`..=`, `for-over-number`, `shadow-local`, `assign-to-parameter`, `plt.iter` guard. | `tests/semantic/main.rs:858`, `tests/ir/main.rs:604`, `tests/codegen/main.rs:1457` |
-| 2 | Lambda dan closure | **BAGIAN** | AST + parser selesai; IR lowering masih `unimplemented!`. | `libraries/language/src/ast/expression.rs`, `libraries/ir/src/lower.rs:671` |
-| 3 | Registry builtin + arity | **BAGIAN** | `Builtin` kini variadik + penanda `pure`; penegakan, builtin matematika, dan runtime helpers belum. | `libraries/standard/src/lib.rs:25` |
-| 4 | `fn` tingkat atas murni + impor | **BELUM** | | |
-| 5 | Operator bitwise | **BAGIAN** | Parse + lower ada (AST `And/Or/Xor/Shl/Shr`); `~` masih terpetakan ke negasi; tanpa kurung eksplisit; compound assign belum; cek tipe operand belum. | `libraries/ir/src/lower.rs:619`, `libraries/language/src/parser/expression.rs:122` |
-| 6 | Bukti penerimaan, `plt format`, dokumentasi | **BELUM** | | |
+| 0 | Lexer & desain | **SELESAI** | Token `..` `..=` `=>` `&` `\|` `^` `~` `<<` `>>` `&=` `\|=` `^=` `<<=` `>>=`, literal `0x`/`0b`, `Precedence` diperluas, dan perbaikan bug presedensi `binary_info` (`1 + 2 * 3` sekarang benar). | `libraries/language/src/parser/expression.rs:88`, `tests/lexer/main.rs:328`, `tests/parser/main.rs:207`, `docs/logic-design.md` |
+| 1 | `let`, `while`, loop angka | **SELESAI** | `let` blok + scope, `while`, `for i in a..b`/`..=`, `for-over-number`, `shadow-local`, guard `plt.iter`. | `libraries/language/src/parser/statement.rs:160`, `libraries/web/src/codegen/statement.rs:54`, `tests/parser/main.rs:318`, `fixtures/valid/compute.plt:75` |
+| 2 | Lambda dan closure | **SELESAI** | AST, parser, pemeriksaan semantik, lowering IR dengan penamaan parameter unik (`l0_x`), dan arrow function JavaScript. Ditutup test di lima lapisan. | `libraries/ir/src/lower.rs:748`, `tests/ir/main.rs:701`, `tests/codegen/main.rs:1533`, `tests/web/lambda.mjs` |
+| 3 | Registry builtin + arity | **SELESAI** | 57 builtin murni + 20 impure, arity tetap maupun variadik, penanda `pure`, penegakan arity di `check_call`, dan helper JavaScript yang mencerminkannya. | `libraries/standard/src/lib.rs:64`, `libraries/standard/src/lib.rs:124`, `libraries/semantic/src/checker.rs:1179`, `tests/semantic/main.rs` (`a_builtin_rejects_the_wrong_number_of_arguments`) |
+| 4 | `fn` tingkat atas murni + impor | **SELESAI** | Kemurnian ditegakkan pada badan `fn` tingkat atas (`impure-call-in-pure-fn`, `pure-fn-uses-state`), dan impor fungsi lintas modul bekerja lewat penggabungan sumber — termasuk arity, `test` blok milik library, dan hook test runner. | `libraries/semantic/src/checker.rs:87`, `libraries/semantic/src/checker.rs:1045`, `libraries/web/src/codegen/web/tests.rs:100`, `tests/loader/main.rs` (`a_function_imported_from_a_module_type_checks_against_its_signature`) |
+| 5 | Operator bitwise | **SEBAGIAN** | `&` `\|` `^` `<<` `>>` dan `~` (bit-not, bukan negasi) berimplementasi dari lexer sampai codegen. Setiap operand bitwise diberi kurung penuh karena `&` di JavaScript mengikat lebih longgar dari `==`, sehingga `n & k == 1` tidak boleh dipancarkan apa adanya. Tipe operand bitwise wajib `Int`. **Yang belum ada:** compound assign `&=` `\|=` `^=` `<<=` `>>=`. | `libraries/language/src/parser/expression.rs:122`, `libraries/ir/src/lower.rs:996`, `libraries/semantic/src/checker.rs:1098`, `tests/codegen/main.rs` (`a_bitwise_operand_is_parenthesised_even_when_its_priority_allows_it`) |
+| 6 | Bukti penerimaan | **SELESAI** | Paket `examples/algoritma/` (tanpa `app`, tanpa `#[rust]`) dengan 14 `test` nilai nyata; alur publish → install → import → `derived`/handler → build → jalan di Node; benchmark 1 juta iterasi. | `examples/algoritma/src/lib.plt`, `p2lt/tests/acceptance.rs`, `tests/web/benchmark.mjs` |
+| 6b | `plt format` + dokumentasi | **SELESAI** | `platipus format` menormalkan indentasi dan idempoten; `docs/guide.md`, `docs/library.md`, `docs/architecture.md`, `docs/logic-design.md`, `docs/package-registry.md`. | `cli/src/command/format.rs`, `tests/cli/main.rs` (`the_scaffolded_project_is_already_formatted`) |
 
-Rencana lengkap, kriteria keluar, dan bukti per fase ada di `fase.md`;
-keputusan sintaks final ada di `docs/logic-design.md`.
+### 10.1 Yang sengaja belum dikerjakan
+
+- **Compound assignment bitwise.** `&=` `\|=` `^=` `<<=` `>>=` sudah dipindai lexer
+  sebagai token (`libraries/language/src/lexer/token.rs:52`) tetapi belum masuk
+  `is_assignment()` di `:77`, dan `assign_op()` di
+  `libraries/language/src/parser/expression.rs:471` tidak punya cabangnya.
+  Sampai sekarang `x &= 1` menghasilkan galat `expected-expression` yang jelas,
+  bukan ditafsirkan diam-diam sebagai `x = 1`. `docs/logic-design.md` menunda ini
+  dengan alasan yang masih berlaku: menambahkan token ke `is_assignment()`
+  sebelum AST punya variannya akan menelan operatornya.
+- **Type checking belum menyeluruh.** `infer_expr_type`
+  (`libraries/semantic/src/checker.rs:887`) hanya menyimpulkan tipe dari literal,
+  sehingga ekspresi yang melibatkan identifier, panggilan, atau indeks tidak
+  diperiksa. Tipe balik `fn` juga belum diperiksa: `return_type` hanya divalidasi
+  sebagai *nama* (`check_type`), bukan terhadap nilai yang benar-benar dikembalikan.
+- **Deteksi bentrok impor fungsi.** Loader menggabungkan sumber modul, dan
+  `declarations()` di `compiler/src/loader.rs:307` mengumpulkan app, component,
+  style, theme, api, dan test — **tapi tidak** `fn` tingkat atas. Dua modul yang
+  sama-sama mendeklarasikan `fn square` akan bertabrakan saat lowering dengan
+  span yang membingungkan, bukan dengan `import-collision` yang bersih.
+
+Keputusan sintaks final ada di `docs/logic-design.md`. Riwayat dan bukti per fase
+ada di `catatan.md`.
 
 Bagian B (`platipusbrak/` — analisis + proposal Brak) belum dimulai.

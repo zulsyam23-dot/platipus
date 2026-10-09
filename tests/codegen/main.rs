@@ -1548,3 +1548,132 @@ app Main {
     assert!(script.contains("let t_g = (l1_a, l1_b) => l1_a + l1_b"), "{script}");
     assert!(script.contains("s.count.value = t_f(3) + t_g(1, 2)"), "{script}");
 }
+
+#[test]
+fn bitwise_expressions_reach_the_runtime_intact() {
+    let script = javascript(
+        r#"
+app Main {
+    state masked = 5 & 3
+    state shifted = 1 << 2 + 3
+    state inverted = ~0 & 0xFF
+    Column { Text masked Text shifted Text inverted }
+}
+"#,
+    );
+    assert!(script.contains("plt.signal(5 & 3)"), "{script}");
+    assert!(script.contains("plt.signal(~0 & 255)"), "{script}");
+    // The outermost expression keeps the target's own grouping. JavaScript binds
+    // `+` tighter than `<<`, so this reads the same way it was written; the
+    // parentheses that actually matter are the ones `a_bitwise_operand_is_...`
+    // below checks for.
+    assert!(script.contains("plt.signal(1 << 2 + 3)"), "{script}");
+}
+
+#[test]
+fn a_bitwise_operand_is_parenthesised_even_when_its_priority_allows_it() {
+    // JavaScript binds `==` tighter than `&`, so an emitted `a & b == c` would
+    // mean something different there than it does here. Every bitwise operand
+    // therefore carries its own parentheses rather than relying on the two
+    // precedence tables to agree.
+    let script = javascript(
+        r#"
+app Main {
+    state n = 5
+    state k = 3
+    state grouped = n & k == 1
+    Column { Text grouped }
+}
+"#,
+    );
+    assert!(
+        script.contains("plt.signal((s.n.value & s.k.value) == 1)"),
+        "{script}"
+    );
+}
+
+
+#[test]
+fn an_integer_division_call_reaches_the_runtime_helper() {
+    let script = javascript(
+        r#"
+app Main {
+    state half = idiv(9, 2)
+    Column { Text half }
+}
+"#,
+    );
+    assert!(script.contains("plt.signal(plt.idiv(9, 2))"), "{script}");
+    assert!(script.contains("function idiv("), "{script}");
+}
+
+#[test]
+fn a_code_point_lookup_reaches_the_runtime_helper() {
+    let script = javascript(
+        r#"
+app Main {
+    state code = codeAt("abc", 1)
+    Column { Text code }
+}
+"#,
+    );
+    assert!(script.contains("plt.signal(plt.codeAt("), "{script}");
+    assert!(script.contains("function codeAt("), "{script}");
+}
+
+#[test]
+fn a_top_level_functions_tests_reach_them_through_the_programs_exports() {
+    // An imported module brings its `test` blocks along, and those blocks call
+    // the library's own top-level functions. The runner is a separate module, so
+    // it has to pull each function in under the exported name rather than the
+    // internal `f_` name the program body uses. The loader inlines an import
+    // into the program text, so a function declared here stands in for one that
+    // arrived from a package.
+    let module = lower(
+        r#"
+fn double(n: Int) -> Int {
+    return n * 2
+}
+
+app Main {
+    state n = double(21)
+    Column { Text n }
+}
+
+test libraryTests {
+    expect double(2) == 4
+}
+"#,
+    );
+    let runner = platipus_compiler::codegen::Web
+        .generate(&module, None)
+        .expect("codegen failed")
+        .into_iter()
+        .find(|artifact| artifact.name == "tests.mjs")
+        .expect("tests.mjs")
+        .contents;
+    assert!(runner.contains("const double = program.double;"), "{runner}");
+    assert!(!runner.contains("f_double"), "{runner}");
+}
+
+#[test]
+fn the_runtime_is_exported_even_when_a_program_declares_no_function() {
+    let module = lower(
+        r#"
+app Main {
+    state n = len([1, 2])
+    Column { Text n }
+}
+"#,
+    );
+    let script = platipus_compiler::codegen::Web
+        .generate(&module, None)
+        .expect("codegen failed")
+        .into_iter()
+        .find(|artifact| artifact.name == "app.js")
+        .expect("app.js")
+        .contents;
+    // The generated runner rewrites builtin calls to `plt.*`, so `__plt` cannot
+    // be conditional on the program happening to declare a function.
+    assert!(script.contains("export const __plt = plt;"), "{script}");
+}

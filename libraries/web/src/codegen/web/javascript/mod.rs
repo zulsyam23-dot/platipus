@@ -46,8 +46,11 @@ pub fn render(module: &IrModule, rust: Option<&platipus_ir::RustBridge>) -> Stri
                 .join(", "),
         );
         out.push_str(" };\n");
-        out.push_str("export const __plt = plt;\n");
     }
+    // The runtime is exported whatever the program declares, because the
+    // generated test runner rewrites builtin calls to `plt.*` and has to reach
+    // the same object the program closed over.
+    out.push_str("export const __plt = plt;\n");
     out.push_str(&render_bootstrap(module));
     out
 }
@@ -1452,6 +1455,16 @@ function indexOf(collection, needle) {
   if (collection && typeof collection === "object") return typeof needle === "string" ? mapKeys(collection).indexOf(needle) : -1;
   return -1;
 }
+/**
+ * The code point at a character index, or -1 past the end. Indexing by
+ * character rather than by UTF-16 unit is what keeps it consistent with `len`
+ * and with `indexOf`, which both count characters.
+ */
+function codeAt(value, index) {
+  if (typeof value !== "string" || typeof index !== "number" || !Number.isFinite(index)) return -1;
+  if (index < 0) return -1;
+  return value.codePointAt(Math.trunc(index)) ?? -1;
+}
 function sameValue(a, b) {
   if (Object.is(a, b)) return true;
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -1558,6 +1571,16 @@ function pow(base, exp) {
   const result = Math.pow(base, exp);
   return Number.isFinite(result) ? result : null;
 }
+/**
+ * Truncating integer division. `/` is true division and answers a float, so the
+ * integer half has to be asked for by name. A zero divisor has no integer
+ * answer and reports nothing, rather than handing back `NaN`.
+ */
+function idiv(left, right) {
+  if (!Number.isInteger(left) || !Number.isInteger(right)) return null;
+  if (right === 0) return null;
+  return Math.trunc(left / right);
+}
 function first(list) { return Array.isArray(list) && list.length ? list[0] : null; }
 function last(list) { return Array.isArray(list) && list.length ? list[list.length - 1] : null; }
 function take(list, count) {
@@ -1640,6 +1663,7 @@ return {
     isEmpty,
     contains,
     indexOf,
+    codeAt,
     upper,
     lower,
     trim,
@@ -1658,6 +1682,7 @@ return {
     round,
     sqrt,
     pow,
+    idiv,
     trunc,
     sign,
     log,

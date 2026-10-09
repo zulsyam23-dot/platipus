@@ -428,3 +428,35 @@ fn parses_a_lambda_with_a_block_body() {
         other => panic!("expected a lambda, got {other:?}"),
     }
 }
+
+#[test]
+fn bitwise_binds_looser_than_arithmetic_and_tighter_than_equality() {
+    // The three groupings `docs/logic-design.md` names as the reason the
+    // precedence table was extended, each written out so a change to the parser
+    // shows up here rather than in a program's arithmetic.
+    assert_eq!(render_state("app A { state x = n & 1 == 0 }"), "((n & 1) == 0)");
+    assert_eq!(render_state("app A { state x = 1 << 2 + 3 }"), "(1 << (2 + 3))");
+    assert_eq!(render_state("app A { state x = 1 + 2 * 3 }"), "(1 + (2 * 3))");
+}
+
+#[test]
+fn bitwise_operators_keep_their_own_precedence_order() {
+    assert_eq!(render_state("app A { state x = 1 | 2 ^ 3 & 4 }"), "(1 | (2 ^ (3 & 4)))");
+    assert_eq!(render_state("app A { state x = 1 & 2 | 3 }"), "((1 & 2) | 3)");
+    assert_eq!(render_state("app A { state x = 1 << 2 >> 3 }"), "((1 << 2) >> 3)");
+    assert_eq!(render_state("app A { state x = a | b || c }"), "((a | b) || c)");
+}
+
+#[test]
+fn a_tilde_is_a_bitwise_not_rather_than_a_negation() {
+    assert_eq!(render_state("app A { state x = ~0 }"), "(~0)");
+    assert_eq!(render_state("app A { state x = ~a + 1 }"), "((~a) + 1)");
+}
+
+#[test]
+fn hex_and_binary_literals_are_plain_integers() {
+    assert_eq!(render_state("app A { state x = 0xFF }"), "255");
+    assert_eq!(render_state("app A { state x = 0b1011 }"), "11");
+    assert_eq!(render_state("app A { state x = 0xF0 | 0x0F }"), "(240 | 15)");
+}
+

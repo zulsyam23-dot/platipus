@@ -1,10 +1,10 @@
 # Logic Design — Keputusan Sintaks & Teknis Komputasi
 
 Dokumen ini adalah rujukan final untuk keputusan sintaks dan keputusan teknis
-yang dibuat selama pengimplementasian paket "kemampuan komputasi"
-(`fase.md`). Setiap fase menambahkan catatannya di sini. Keputusan di bawah
-bersifat **final** — jika ada konflik dengan dokumen lain, halaman ini yang
-menang.
+yang dibuat selama pengimplementasian paket "kemampuan komputasi". Riwayat dan
+bukti per fase ada di `catatan.md` dan tabel fase di `docs/roadmap.md` bagian 10.
+Keputusan di bawah bersifat **final** — jika ada konflik dengan dokumen lain,
+halaman ini yang menang.
 
 ## 1. Presedensi operator (rendah → tinggi)
 
@@ -105,4 +105,29 @@ Token baru: `..` `..=` `=>` `&` `|` `^` `~` `<<` `>>` `&=` `|=` `^=` `<<=`
   `Scope` codegen agar `rewrite` tidak salah memindai teks.
 - **Fase 5** — IR menyimpan teks JS dan preseden JS berbeda (`&` di JS lebih
   rendah dari `==`), jadi setiap ekspresi bitwise di-emit dengan kurung
-  eksplisit penuh: `(a & b)`.
+  eksplisit penuh: `(a & b)`. Keputusan ini baru benar-benar dijalankan pada
+  2026-10-09; sebelumnya `operand_at_least` hanya menambahkan kurung saat
+  presedensi operand lebih longgar dari yang dibutuhkan, sehingga
+  `n & k == 1` dipancarkan sebagai `n & k == 1` dan JavaScript membacanya
+  sebagai `n & (k == 1)`. Angka yang benar adalah `1`, yang dipancarkan `0`.
+  Sekarang `is_bitwise` di `libraries/ir/src/lower.rs:996` memaksa kurung pada
+  setiap operand bitwise.
+
+## 4. Pembagian `/` dan pembagian bulat
+
+`/` adalah pembagian sejati. `1 / 2` adalah `0.5`, apa pun tipe operandnya,
+karena inilah yang diemittekan ke JavaScript. Konsekuensinya: `Int` di backend
+web adalah `Number` JavaScript, dan hanya bilangan bulat sampai `2^53 - 1` yang
+tersimpan persis. `fib(79)` bernilai `14472334024676221` secara matematis tetapi
+dipancarkan `14472334024676220`; `factorial(20)` yang lebih besar justru masih
+persis karena faktor duacheckmark lebihanyak. Batas ini diukur, bukan
+diasumsikan: test `integersLosePrecision` di `examples/algoritma/src/lib.plt`.
+
+Pembagian bulat tidak bisa ditulis `//` karena `//` sudah menjadi komentar
+baris di Platipus — setiap file pada repo ini dimulai dengannya. Sisa pilihan
+yang tidak ambigu adalah pemanggilan, jadi ada builtin `idiv(a, b)` yang
+memotong ke arah nol. Nol sebagai pembagi tidak punya jawaban bulat, jadi
+`idiv` mengembalikan "tidak ada" (`null` di web, `None` di runtime Rust)
+bukan `Infinity` atau `NaN`. Kedua backend menolak operand `Float` dengan
+alasan yang sama, supaya program yang sama tidak menjawab berbeda tergantung
+backend mana yang menjalankannya.

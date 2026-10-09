@@ -42,8 +42,7 @@ app Main { Column { } }
 "#;
     let outcome = platipus_compiler::parser::parse("main.plt", source);
     let bag = platipus_compiler::rust::extract_rust(&outcome.program)
-        .err()
-        .expect("must fail");
+        .expect_err("must fail");
     assert!(
         bag.errors()
             .any(|e| e.message.contains("HashMap<String, i64>"))
@@ -88,7 +87,7 @@ app Main { Column { } }
         &dir,
         platipus_compiler::rust::RustMode::Check,
     );
-    let bag = result.err().expect("must fail");
+    let bag = result.expect_err("must fail");
     let error = bag.errors().next().unwrap();
     assert_eq!(error.code, "rust-compile");
     assert!(error.span.is_some(), "error span must point at the .plt source");

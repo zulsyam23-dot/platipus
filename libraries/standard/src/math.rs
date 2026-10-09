@@ -54,6 +54,28 @@ pub fn clamp(value: &Value, lo: &Value, hi: &Value) -> Option<Value> {
     Some(Value::float(v.max(l).min(h)))
 }
 
+/// Truncating integer division, for both integers only.
+///
+/// `/` is true division: it hands back a float whenever the result is not a
+/// whole number, so `1 / 2` is `0.5`. `//` cannot spell this in Platipus because
+/// it already introduces a line comment, which leaves a call as the only
+/// unambiguous way to ask for the integer half. Division by zero has no integer
+/// answer, so it reports nothing rather than producing `NaN` or an infinity.
+///
+/// The operands are matched as integers rather than read through `as_int`,
+/// which would quietly accept a float. The web runtime already refuses one, and
+/// a helper that answers differently depending on which backend ran it would be
+/// worse than one that refuses everywhere.
+pub fn idiv(a: &Value, b: &Value) -> Option<Value> {
+    let (Value::Int(left), Value::Int(right)) = (a, b) else {
+        return None;
+    };
+    if *right == 0 {
+        return None;
+    }
+    Some(Value::int(left.checked_div(*right)?))
+}
+
 pub fn floor(value: &Value) -> Option<Value> {
     value.as_float().map(f64::floor).map(Value::float)
 }
@@ -275,5 +297,26 @@ mod tests {
             Some(Value::float(2.0_f64.sqrt()))
         );
         assert_eq!(pow(&Value::int(2), &Value::int(-1)), None);
+    }
+
+    #[test]
+    fn integer_division_truncates_towards_zero() {
+        assert_eq!(idiv(&Value::int(7), &Value::int(2)), Some(Value::int(3)));
+        assert_eq!(idiv(&Value::int(-7), &Value::int(2)), Some(Value::int(-3)));
+        assert_eq!(idiv(&Value::int(8), &Value::int(2)), Some(Value::int(4)));
+        assert_eq!(idiv(&Value::int(1), &Value::int(2)), Some(Value::int(0)));
+    }
+
+    #[test]
+    fn integer_division_refuses_a_zero_divisor() {
+        // `/` would answer `Infinity` here. There is no integer to report, so
+        // the call produces nothing rather than a number the caller cannot use.
+        assert_eq!(idiv(&Value::int(1), &Value::int(0)), None);
+    }
+
+    #[test]
+    fn integer_division_refuses_a_float_operand() {
+        assert_eq!(idiv(&Value::int(7), &Value::float(2.0)), None);
+        assert_eq!(idiv(&Value::float(7.0), &Value::int(2)), None);
     }
 }

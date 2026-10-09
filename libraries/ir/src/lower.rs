@@ -975,13 +975,33 @@ fn precedence_of(expression: &Expression) -> Prec {
 
 /// Lowers `expression` and wraps it in parentheses when it binds more loosely
 /// than the position it is being placed in.
+///
+/// A bitwise expression is wrapped even when it does not need to be, because
+/// this text is re-parsed by JavaScript and JavaScript does not agree with
+/// Platipus here: in Platipus `==` binds looser than `&`, while in JavaScript
+/// `==` binds tighter. `n & k == 1` means `(n & k) == 1` in the source language
+/// and would mean `n & (k == 1)` if the parentheses were left to the target's
+/// precedence table. The emitted text is therefore unambiguous by construction
+/// rather than by two tables happening to agree.
 fn operand_at_least(expression: &Expression, minimum: Prec) -> String {
     let text = lower_expression(expression);
-    if precedence_of(expression) < minimum {
+    if is_bitwise(expression) || precedence_of(expression) < minimum {
         format!("({text})")
     } else {
         text
     }
+}
+
+/// Whether `expression` is one of the five binary bitwise operators.
+fn is_bitwise(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Binary { op, .. }
+            if matches!(
+                op,
+                BinaryOp::And | BinaryOp::Or | BinaryOp::Xor | BinaryOp::Shl | BinaryOp::Shr
+            )
+    )
 }
 
 fn binary_precedence(op: BinaryOp) -> Prec {

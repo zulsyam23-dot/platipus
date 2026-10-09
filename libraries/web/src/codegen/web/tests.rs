@@ -53,6 +53,21 @@ pub fn render(module: &IrModule) -> String {
     }
 
     out.push_str("let s, d;\n");
+    // The runner is its own module, so a top-level function is not in scope here
+    // under the name the program uses internally (`f_gcd`). It is exported under
+    // its Platipus name, which is the name an expectation is written in, so the
+    // runner pulls each one in under that name and rewrites against it. A
+    // program that imports a library inherits that library's `test` blocks, and
+    // those blocks call the library's own functions.
+    if !module.functions.is_empty() {
+        out.push_str("// Top-level functions, reached through the program's exports.\n");
+        for function in &module.functions {
+            out.push_str(&format!("const {} = program.{};\n", function.name, function.name));
+        }
+    }
+    // Builtins are rewritten to `plt.*` on both sides, so the runner needs the
+    // same runtime object the program closed over.
+    out.push_str("const plt = program.__plt;\n");
     out.push_str("function mount() {\n");
     out.push_str("  const target = new dom.Element(\"div\");\n");
     out.push_str("  const instance = program.mount(target);\n");
@@ -66,13 +81,30 @@ pub fn render(module: &IrModule) -> String {
     out.push_str(RUNNER_HELPERS);
     out.push('\n');
     out.push_str("const tests = [\n");
-    let scope = module.components.first().map(|component| scope_for(component, module));
+    let scope = module
+        .components
+        .first()
+        .map(|component| exported_function_scope(scope_for(component, module), module));
     for test in &module.tests {
         render_test(&mut out, test, scope.as_ref());
     }
     out.push_str("];\n\n");
     out.push_str("await main(tests);\n");
     out
+}
+
+/// Rebinds every top-level function from its internal `f_` name to the name the
+/// program exports it under, which is the name the runner declared for it. The
+/// component's own functions are left alone: they live inside the component
+/// closure and were never reachable from a `test` block to begin with.
+fn exported_function_scope(
+    mut scope: crate::codegen::expression::Scope,
+    module: &IrModule,
+) -> crate::codegen::expression::Scope {
+    for function in &module.functions {
+        scope.bind(&function.name, &function.name);
+    }
+    scope
 }
 
 fn render_test(out: &mut String, test: &IrTest, scope: Option<&crate::codegen::expression::Scope>) {

@@ -227,3 +227,106 @@ fn the_loaderless_pipeline_refuses_an_unresolved_import() {
         pipeline::build_file("app.plt", source, &Web).expect_err("must fail without a loader");
     assert_eq!(codes(&bag), ["import-not-loaded"]);
 }
+
+#[test]
+fn a_function_imported_from_a_module_lands_in_the_programs_output() {
+    // Every existing fixture imports a `component`. The loader inlines module
+    // sources into one program, so a top-level `fn` should arrive the same way
+    // and be callable from the entry.
+    let dir = scratch("function-import");
+    write(
+        &dir,
+        "math.plt",
+        "fn triple(n: Int) -> Int {\n    return n * 3\n}\n",
+    );
+    let entry = write(
+        &dir,
+        "app.plt",
+        r#"import Math from "./math.plt"
+
+app Main {
+    state n = triple(7)
+    Column { Text n }
+}
+"#,
+    );
+    let source = fs::read_to_string(&entry).expect("read entry");
+    let artifacts = pipeline::build_entry(&entry.display().to_string(), &source, &FsLoader, &Web)
+        .expect("a module of functions has to build")
+        .compilation
+        .artifacts;
+    let script = artifacts
+        .iter()
+        .find(|artifact| artifact.name == "app.js")
+        .expect("app.js")
+        .contents
+        .clone();
+    assert!(script.contains("p_n * 3"), "{script}");
+    assert!(script.contains("as triple"), "{script}");
+}
+
+#[test]
+fn a_function_imported_from_a_module_type_checks_against_its_signature() {
+    // Inlining is what makes the function visible, so the arity rule has to see
+    // it too rather than treating an unknown callee as unchecked.
+    let dir = scratch("function-import-arity");
+    write(
+        &dir,
+        "math.plt",
+        "fn triple(n: Int) -> Int {\n    return n * 3\n}\n",
+    );
+    let entry = write(
+        &dir,
+        "app.plt",
+        r#"import Math from "./math.plt"
+
+app Main {
+    state n = triple(7, 8)
+    Column { Text n }
+}
+"#,
+    );
+    let source = fs::read_to_string(&entry).expect("read entry");
+    let failure = pipeline::build_entry(&entry.display().to_string(), &source, &FsLoader, &Web)
+        .expect_err("too many arguments has to fail");
+    let pipeline::EntryFailure::Whole { bag, .. } = failure else {
+        panic!("an arity error is a whole-program failure");
+    };
+    assert_eq!(codes(&bag), ["wrong-argument-count"]);
+}
+
+#[test]
+fn a_library_module_may_declare_test_blocks_that_the_entry_inherits() {
+    // A package ships its tests with it. They are not dropped on import, because
+    // the runner rewrites them against the module's own functions.
+    let dir = scratch("function-import-tests");
+    write(
+        &dir,
+        "math.plt",
+        "fn triple(n: Int) -> Int {\n    return n * 3\n}\n\ntest triplesThree {\n    expect triple(3) == 9\n}\n",
+    );
+    let entry = write(
+        &dir,
+        "app.plt",
+        r#"import Math from "./math.plt"
+
+app Main {
+    state n = triple(7)
+    Column { Text n }
+}
+"#,
+    );
+    let source = fs::read_to_string(&entry).expect("read entry");
+    let artifacts = pipeline::build_entry(&entry.display().to_string(), &source, &FsLoader, &Web)
+        .expect("the entry has to build")
+        .compilation
+        .artifacts;
+    let runner = artifacts
+        .iter()
+        .find(|artifact| artifact.name == "tests.mjs")
+        .expect("tests.mjs")
+        .contents
+        .clone();
+    assert!(runner.contains("triplesThree"), "{runner}");
+    assert!(runner.contains("const triple = program.triple;"), "{runner}");
+}
