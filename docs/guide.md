@@ -155,7 +155,7 @@ Jalankan: `platipus test app.plt` atau dari project: `plt test`.
 
 Blok `test` hanya boleh berisi action (`click`) dan `expect` — tidak ada `let`.
 Test yang butuh nilai antara memanggil fungsi yang mengembalikannya, seperti yang
-`examples/algoritma/src/lib.plt` lakukan untuk `sortReport()`.
+`examples/computasi/src/lib.plt` lakukan untuk `sortReport()`.
 
 ## Fungsi dan pembagian
 
@@ -183,7 +183,7 @@ fn halving(n: Int) -> Int {
 Operasi teks yang sering dipakai: `codeAt(teks, i)` memberi kode karakter pada
 indeks ke-`i`, dihitung per karakter (bukan per byte) supaya konsisten dengan
 `len`, dan `isPalindrome` di
-[`examples/algoritma/src/lib.plt`](../examples/algoritma/src/lib.plt)
+[`examples/computasi/src/lib.plt`](../examples/computasi/src/lib.plt)
 dibangun di atasnya.
 
 ## Perintah CLI

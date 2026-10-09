@@ -18,17 +18,22 @@ Diperbarui: 2026-10-09
 Semua butir pada prioritas lama nomor 1 sudah tertutup. Yang ditutup dan
 dengan bukti apa:
 
-- [x] Paket penerimaan `examples/algoritma/` dengan `p2lt.toml` dan
-  `src/lib.plt`, tanpa `#[rust]` dan tanpa `app`.
+- [x] Paket penerimaan `examples/computasi/` dengan `p2lt.toml`,
+  `src/lib.plt`, dan `src/widgets.plt` yang diimpor relatif, tanpa `#[rust]`
+  dan tanpa `app`.
 - [x] Test nilai nyata untuk gcd/lcm, primalitas, Fibonacci, faktorial,
   operasi daftar, Collatz, sorting tanpa mengubah input, binary search,
-  palindrome, FNV-1a, dan lambda map. Empat belas blok `test`, masing-masing
+  palindrome, FNV-1a, dan lambda map. Tiga belas blok `test`, masing-masing
   menyatakan angka yang benar-benar dihitung program.
 - [x] Alur paket ujung ke ujung: publish ke registry lokal, install di
   aplikasi lain, impor beberapa fungsi, panggil dari `derived` dan dari click
   handler, build, lalu `node` menjalankan test aplikasi. Di
-  `p2lt/tests/acceptance.rs`. Konsekuensinya menarik: konsumen mewarisi 14 test
-  milik library, jadi 17 test yang hijau di sana.
+  `p2lt/tests/acceptance.rs`. Konsekuensinya menarik: konsumen mewarisi 13 test
+  milik paket, jadi 16 test yang hijau di sana.
+- [x] Alur GitHub: paket dipublish ke `github.com/zulsyam23-dot/lib-uji-coba-`
+  lalu dipasang dari sana dengan `p2lt add github.com/zulsyam23-dot/lib-uji-coba-`.
+  Di `examples/computasi-github/`. Dengan store kosong build gagal
+  `import-not-found`, jadi angka-angkanya benar-benar dari repo tersebut.
 - [x] Batas performa 1 juta iterasi di harness Node, di
   `tests/web/benchmark.mjs`. Baseline di mesin ini: `for i in 0..1_000_000`
   0.7 ms, `while` 0.7 ms, 100rb list + map + fold 6.7 ms, 1000 panggilan

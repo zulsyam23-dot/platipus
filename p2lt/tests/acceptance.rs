@@ -1,7 +1,7 @@
 //! The acceptance package, exercised through the whole package flow.
 //!
 //! `p2lt/tests/package.rs` proves the package manager moves files around. This
-//! proves a program actually *uses* a published package: `examples/algoritma/`
+//! proves a program actually *uses* a published package: `examples/computasi/`
 //! is published to a local registry, installed into a fresh application, its
 //! functions are called from a `derived` and from a click handler, the app is
 //! built, and Node runs the app's own tests against the emitted DOM shim.
@@ -75,7 +75,7 @@ fn node_available() -> bool {
 /// checked in because the point is that a *separate* project can reach the
 /// functions; a checked-in app would live beside the package it imports.
 const CONSUMER: &str = r##"
-import Algoritma from "algoritma"
+import Komputasi from "computasi"
 
 app Laporan {
     state seed = 12
@@ -144,23 +144,23 @@ fn a_published_package_is_installed_called_and_built_end_to_end() {
 
     // 1. Publish the acceptance package the way a library author would. It is
     //    copied out of the repository so the test cannot write into the tree.
-    let source = repo_root().join("examples").join("algoritma");
+    let source = repo_root().join("examples").join("computasi");
     let author = root.join("penulis");
     copy_tree(&source, &author);
     p2lt(&author, &["publish"]);
 
     // 2. Start an unrelated project and install the package into it.
     p2lt(&project, &["init"]);
-    p2lt(&project, &["install", "algoritma"]);
+    p2lt(&project, &["install", "computasi"]);
     let manifest = std::fs::read_to_string(project.join("p2lt.toml")).unwrap();
-    assert!(manifest.contains("algoritma = \"0.1\""), "{manifest}");
+    assert!(manifest.contains("computasi = \"0.1\""), "{manifest}");
     assert!(
-        store.join("packages/algoritma/src/lib.plt").exists(),
+        store.join("packages/computasi/src/lib.plt").exists(),
         "the package did not reach the store"
     );
 
     // 3. Write the consumer and build it. `build` resolves `import ... from
-    //    "algoritma"` through the store, so a resolution break fails here.
+    //    "computasi"` through the store, so a resolution break fails here.
     std::fs::write(project.join("src").join("main.plt"), CONSUMER).unwrap();
     p2lt(&project, &["build"]);
     let dist = project.join("dist");
@@ -178,10 +178,10 @@ fn a_published_package_is_installed_called_and_built_end_to_end() {
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(output.status.success(), "the consumer's tests failed\n{stdout}\n{stderr}");
-    // Seventeen, not three: the consumer declares three tests and inherits the
-    // fourteen the imported library shipped with it. Both sets have to pass here,
-    // because this is the run that proves the library works from outside itself.
-    assert!(stdout.contains("17 passed, 0 failed"), "{stdout}");
+    // Sixteen, not three: the consumer declares three tests and inherits the
+    // thirteen the imported package shipped with it. Both sets have to pass here,
+    // because this is the run that proves the package works from outside itself.
+    assert!(stdout.contains("16 passed, 0 failed"), "{stdout}");
 
     std::fs::remove_dir_all(&root).ok();
 }

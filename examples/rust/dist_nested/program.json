@@ -1,8 +1,0 @@
-{
-  "name": "Main",
-  "components": ["Main"],
-  "apis": [],
-  "tests": [],
-  "routes": [],
-  "entry": "index.html"
-}

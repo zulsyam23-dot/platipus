@@ -1,8 +1,0 @@
-{
-  "name": "PriceApp",
-  "components": ["PriceApp"],
-  "apis": [],
-  "tests": [],
-  "routes": [],
-  "entry": "index.html"
-}

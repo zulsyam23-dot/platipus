@@ -143,7 +143,7 @@ setengah terpasang.
 Paket boleh memecah sumbernya sendiri:
 
 ```text
-algoritma/
+computasi/
 ├── p2lt.toml
 └── src/
     ├── lib.plt        ← mengimpor parts.plt
@@ -159,7 +159,7 @@ Kalau impor relatif tidak ditemukan, galatnya menunjuk ke file library-nya
 sendiri:
 
 ```text
-algoritma/src/lib.plt:4:18: semantic[import-not-found]: cannot find `./parts.plt` imported as `Parts`
+computasi/src/lib.plt:4:18: semantic[import-not-found]: cannot find `./parts.plt` imported as `Parts`
 ```
 
 ## 6. Yang tidak dijamin

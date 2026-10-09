@@ -120,8 +120,8 @@ karena inilah yang diemittekan ke JavaScript. Konsekuensinya: `Int` di backend
 web adalah `Number` JavaScript, dan hanya bilangan bulat sampai `2^53 - 1` yang
 tersimpan persis. `fib(79)` bernilai `14472334024676221` secara matematis tetapi
 dipancarkan `14472334024676220`; `factorial(20)` yang lebih besar justru masih
-persis karena faktor duacheckmark lebihanyak. Batas ini diukur, bukan
-diasumsikan: test `integersLosePrecision` di `examples/algoritma/src/lib.plt`.
+persis karena faktor dua di dalamnya lebih banyak. Batas ini diukur, bukan
+diasumsikan: test `integersLosePrecision` di `examples/computasi/src/lib.plt`.
 
 Pembagian bulat tidak bisa ditulis `//` karena `//` sudah menjadi komentar
 baris di Platipus — setiap file pada repo ini dimulai dengannya. Sisa pilihan

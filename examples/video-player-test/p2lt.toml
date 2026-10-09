@@ -1,9 +1,0 @@
-[package]
-name = "video-player-test"
-version = "0.1.0"
-edition = "2026"
-
-[dependencies]
-pemutar-video = "0.1"
-
-[rust.dependencies]
