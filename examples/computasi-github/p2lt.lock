@@ -1,0 +1,7 @@
+[[package]]
+name = "computasi"
+version = "0.1.0"
+checksum = "58e440de16f6a9a9"
+source = "github.com/zulsyam23-dot/lib-uji-coba-"
+revision = "118d03999d2f11d38334d2be2923bc74e008c8d0"
+

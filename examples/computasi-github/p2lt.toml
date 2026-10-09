@@ -1,0 +1,9 @@
+[package]
+name = "computasi-github"
+version = "0.1.0"
+edition = "2026"
+
+[dependencies]
+computasi = "0.1.0"
+
+[rust.dependencies]
